@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>Stack overflow in PlugX RAT - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>Stack overflow in PlugX RAT</h1>
+        <div>
+            <time datetime="2017-09-05 18:19:38 +0800 CST">发布时间: 2017-09-05 18:19</time>
+            <time datetime="2017-09-05 18:19:38 +0800 CST">更新时间: 2017-09-05 18:19</time>
+        </div>
+    </header>
+
+    <section>
+    <p>Black Hat USA 2017 上 @professor__plum 分享了几款常见RAT（Xtreme、PlugX、Gh0st）中存在的漏洞，利用这些漏洞可以反向攻击 C&amp;C Server，本文以 PlugX RAT 为例进行漏洞分析。</p>
+<h2 id="1-漏洞分析">1. 漏洞分析</h2>
+<h3 id="11-delphi">1.1 Delphi</h3>
+<p><img src="1.jpeg" alt=""></p>
+<p>PlugX RAT 由 Delphi 语言开发，直接使用 IDA 对其分析会因缺少符号表导致系统库函数无法识别，分析起来非常不方便。可以使用 IDR 加载 bin 文件，导出 IDC 脚本供 IDA 使用，如下：</p>
+<p><img src="2.jpeg" alt=""></p>
+<p>逆向 Delphi 程序时还需要注意的一点就是传参方式，Delphi 中默认的传参方式是前 3 个参数通过寄存器 eax、edx、ecx 传递，其余参数通过堆栈传递，如上图中 <code>ShowMessage</code>、<code>MoveMemory</code> 的调用。</p>
+<h3 id="12-漏洞成因">1.2 漏洞成因</h3>
+<p>漏洞出现在 Server 与 Client 的通信中：</p>
+<p><img src="3.jpeg" alt=""></p>
+<p>Server 在接收到客户端的请求包后首先对包头进行解析，而后将整个包完整地拷贝到栈上 (0x00549D51 MoveMemory)，典型的栈溢出。有趣的是，在内存拷贝操作的之后开发者再一次对包进行解析 (0x00549D93 DecodePacket_)，在其中判断包的大小并且如果数据过大会进行弹框提示：</p>
+<p><img src="4.jpeg" alt=""></p>
+<p>但此时上层栈帧已被破坏，再做检查为时已晚。</p>
+<h2 id="2-漏洞利用">2. 漏洞利用</h2>
+<h3 id="21-加解密函数">2.1 加解密函数</h3>
+<p>目前市面的 PlugX RAT 大概有3个版本，对此漏洞而言区别主要在于它们对流量加解密方式的不同：</p>
+<p><img src="5.jpeg" alt=""></p>
+<p>以 Type I 为例可编写如下加解密函数：</p>
+<p><img src="6.jpeg" alt=""></p>
+<h3 id="22-保护机制的绕过">2.2 保护机制的绕过</h3>
+<p><img src="7.jpeg" alt=""></p>
+<p>No GS、NO PIE，只需要考虑 DEP，而程序中存在丰富的 Gadgets，例如 <code>CreateProcess</code>、<code>WinExec</code>、<code>VirtualAlloc</code>、<code>VirtualProtect</code> 等，这使得通过 ROP 绕过 DEP 变得十分简单。</p>
+<p>基于 <code>VirtualProtect</code> 可编写如下 ROP：</p>
+<p><img src="8.jpeg" alt=""></p>
+<h3 id="23-利用截图">2.3 利用截图</h3>
+<p><img src="9.gif" alt=""></p>
+<p>可下载样本、IDB 及完整的 exploit：<a href="https://github.com/Q2h1Cg/bh17-plugx-stack-overflow">GitHub</a></p>
+<h2 id="3-参考">3. 参考</h2>
+<ul>
+<li><a href="https://www.blackhat.com/docs/us-17/thursday/us-17-Grange-Digital-Vengeance-Exploiting-The-Most-Notorious-C&amp;C-Toolkits.pdf">https://www.blackhat.com/docs/us-17/thursday/us-17-Grange-Digital-Vengeance-Exploiting-The-Most-Notorious-C&amp;C-Toolkits.pdf</a></li>
+<li><a href="https://www.blackhat.com/docs/asia-14/materials/Haruyama/Asia-14-Haruyama-I-Know-You-Want-Me-Unplugging-PlugX.pdf">https://www.blackhat.com/docs/asia-14/materials/Haruyama/Asia-14-Haruyama-I-Know-You-Want-Me-Unplugging-PlugX.pdf</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

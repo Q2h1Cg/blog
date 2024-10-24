@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>MIPS 初探 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>MIPS 初探</h1>
+        <div>
+            <time datetime="2017-09-15 15:07:00 +0800 CST">发布时间: 2017-09-15 15:07</time>
+            <time datetime="2017-09-15 15:07:00 +0800 CST">更新时间: 2017-09-15 15:07</time>
+        </div>
+    </header>
+
+    <section>
+    <p>这是一篇纯笔记文，很枯燥 ：）</p>
+<h2 id="1-mips32-汇编">1. MIPS32 汇编</h2>
+<h3 id="11-寄存器">1.1 寄存器</h3>
+<p>MIPS 中大量使用寄存器，原因是寄存器的存取可以在一个时钟周期内完成，同时也简化了寻址方式。MIPS 的指令中除加载/存储指令外，都是使用寄存器或立即数作为操作数的。寄存器可分为两类：通用寄存器与特殊寄存器。</p>
+<h4 id="111-通用寄存器gpr">1.1.1 通用寄存器（GPR）</h4>
+<p>MIPS32 架构中定义了 32 个通用寄存器，都是 32 位，使用 $0、$1 &hellip; $31 表示，也可以使用约定命名表示，如 $sp、$a0、$v0、$ra 等。下表显示了各个通用寄存器的约定用法。</p>
+<table>
+  <thead>
+      <tr>
+          <th>编号</th>
+          <th>约定命名</th>
+          <th>约定用法</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>0</td>
+          <td>zero</td>
+          <td>始终为 0，常用于比较</td>
+      </tr>
+      <tr>
+          <td>1</td>
+          <td>$at</td>
+          <td>保留寄存器</td>
+      </tr>
+      <tr>
+          <td>2 ~ 3</td>
+          <td>$v0 ~ $v1</td>
+          <td>Values，保留表达式或函数的返回结果</td>
+      </tr>
+      <tr>
+          <td>4 ~ 7</td>
+          <td>$a0 ~ $a3</td>
+          <td>Arguments，作为函数的前 4 个参数</td>
+      </tr>
+      <tr>
+          <td>8 ~ 15</td>
+          <td>$t0 ~ $t7</td>
+          <td>Temporaries，供汇编程序使用的临时寄存器</td>
+      </tr>
+      <tr>
+          <td>16 ~ 23</td>
+          <td>$s0 ~ $s7</td>
+          <td>Saved values，子函数使用时需要先保存原寄存器的值</td>
+      </tr>
+      <tr>
+          <td>24 ~ 25</td>
+          <td>$t8 ~ $t9</td>
+          <td>Temporaries，供汇编程序使用的临时寄存器，补充 $t0 ~ $t7</td>
+      </tr>
+      <tr>
+          <td>26 ~ 27</td>
+          <td>$k0 ~ $k1</td>
+          <td>保留，中断处理函数使用</td>
+      </tr>
+      <tr>
+          <td>28</td>
+          <td>$gp</td>
+          <td>Gloabl pointer，全局指针</td>
+      </tr>
+      <tr>
+          <td>29</td>
+          <td>$sp</td>
+          <td>Stack pointer，指向栈顶</td>
+      </tr>
+      <tr>
+          <td>30</td>
+          <td>$fp</td>
+          <td>Frame pointer，保存栈指针</td>
+      </tr>
+      <tr>
+          <td>31</td>
+          <td>$ra</td>
+          <td>Return address，返回地址</td>
+      </tr>
+  </tbody>
+</table>
+<h4 id="112-特殊寄存器">1.1.2 特殊寄存器</h4>
+<p>MIPS32 架构中定义了 3 个特殊寄存器，分别是 PC（程序计数器）、HI（乘除结果高位寄存器）和 LO（乘除结果低位寄存器）。</p>
+<p>在进行乘法运算时，HI 和 LO 分别保存结果的高 32 位和低 32 位；在进行除法运算时，HI 保留余数，LO 存储商。</p>
+<h3 id="12-mips-指令集特点">1.2 MIPS 指令集特点</h3>
+<p>MIPS 指令集特点如下：</p>
+<ul>
+<li>固定 4 字节指令长度</li>
+<li>内存中的数据访问（load/store）严格 4 字节对齐</li>
+<li>MIPS32 默认不把子函数的返回地址存放于栈中，而是存放在 $ra 中</li>
+<li>分支延迟效应</li>
+</ul>
+<p>需要着重理解的是分支延迟效应。</p>
+<p>MIPS 采用了高度流水线，其中最重要的效应就是分支延迟效应。任何一个分支跳转语句后面的那条语句叫做分支延迟槽。实际上在程序执行到分支语句时，当它刚把要跳转到的地址填充好还没完成本条指令时，分支语句后面的那个指令就执行了。这是因为流水线效应，几条指令同时在执行，只是处于不同的阶段。分支延迟槽常用被利用起来完成一些参数初始化等相关工作。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-asm" data-lang="asm"><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">$a0</span>, <span style="color:#66d9ef">$s2</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">jalr</span> <span style="color:#66d9ef">strchr</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">mov</span> <span style="color:#66d9ef">$a0</span>, <span style="color:#66d9ef">$s0</span>
+</span></span></code></pre></div><p>由于分支延迟效应的存在，<code>strchr</code> 函数的参数是来自第三行的 $s0，而不是第一行的 $a0。</p>
+<h2 id="2-构建交叉编译与调试环境">2. 构建交叉编译与调试环境</h2>
+<h3 id="21-编译-qemu">2.1 编译 qemu</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span><span style="color:#75715e"># source code</span>
+</span></span><span style="display:flex;"><span>git clone git://git.qemu.org/qemu.gitcd qemu
+</span></span><span style="display:flex;"><span>git submodule init
+</span></span><span style="display:flex;"><span>git submodule update --recursive
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># dependencies</span>
+</span></span><span style="display:flex;"><span>sudo apt install libglib2.0 libglib2.0-dev
+</span></span><span style="display:flex;"><span>sudo apt install autoconf automake libtool
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># build</span>
+</span></span><span style="display:flex;"><span>cd qemu <span style="color:#f92672">&amp;&amp;</span> ./configure
+</span></span><span style="display:flex;"><span>make
+</span></span><span style="display:flex;"><span>sudo make install
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># test</span>
+</span></span><span style="display:flex;"><span>ROOT<span style="color:#f92672">=</span>/home/chu/squashfs-root
+</span></span><span style="display:flex;"><span>cd $ROOT
+</span></span><span style="display:flex;"><span>qemu-mipsel -L $ROOT bin/ls
+</span></span></code></pre></div><h3 id="22-编译-buildroot">2.2 编译 buildroot</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span><span style="color:#75715e"># source code</span>
+</span></span><span style="display:flex;"><span>wget http://buildroot.uclibc.org/downloads/snapshots/buildroot-snapshot.tar.bz2
+</span></span><span style="display:flex;"><span>tar -xjvf buildroot-snapshot.tar.bz2
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># dependencies</span>
+</span></span><span style="display:flex;"><span>sudo apt install libncurses5-dev patch
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># build</span>
+</span></span><span style="display:flex;"><span>cd buildroot-snapshot <span style="color:#f92672">&amp;&amp;</span> make clean <span style="color:#f92672">&amp;&amp;</span> make menuconfig  <span style="color:#75715e"># target architecture -&gt; mips little endian</span>
+</span></span><span style="display:flex;"><span>                                                        <span style="color:#75715e"># target architecture variant -&gt; mips 32</span>
+</span></span><span style="display:flex;"><span>                                                        <span style="color:#75715e"># toolchain, kernal headers -&gt; your linux machine kernel version</span>
+</span></span><span style="display:flex;"><span>make
+</span></span></code></pre></div><h3 id="23-调试">2.3 调试</h3>
+<p>qemu 可以开启 gdb 远程调试，通过 IDA 添加 remote debugger 可以很方便的进行调试。</p>
+<h2 id="3-实际调试过程">3. 实际调试过程</h2>
+<p>编写测试代码如下：</p>
+<p><img src="1.jpeg" alt=""></p>
+<p>编译与测试：</p>
+<p><img src="2.jpeg" alt=""></p>
+<p>开启 gdb server：</p>
+<p><img src="3.png" alt=""></p>
+<p>IDA 中静态分析：</p>
+<p><img src="4.jpeg" alt="">
+<img src="5.jpeg" alt=""></p>
+<p>IDA 远程调试：</p>
+<p><img src="6.jpeg" alt="">
+<img src="7.jpeg" alt=""></p>
+<h2 id="4-参考">4. 参考</h2>
+<ul>
+<li>《揭秘家用路由器 0day 漏洞挖掘技术》</li>
+<li><a href="http://www.cnblogs.com/sevenir-code/p/4887994.html">MIPS 指令特点</a></li>
+<li><a href="http://blog.csdn.net/leishangwen/article/details/37738343">MIPS32 指令集架构简介</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

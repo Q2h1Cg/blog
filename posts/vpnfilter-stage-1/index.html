@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>VPNFilter Stage 1 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>VPNFilter Stage 1</h1>
+        <div>
+            <time datetime="2018-05-28 22:56:27 +0800 CST">发布时间: 2018-05-28 22:56</time>
+            <time datetime="2018-05-28 22:56:27 +0800 CST">更新时间: 2018-05-28 22:56</time>
+        </div>
+    </header>
+
+    <section>
+    <p>周五晚看了下 Stage 1，感觉此木马从跨平台、启动项到多阶段的下载，可以说处处都是亮点，值得分析一波～</p>
+<h2 id="符号表">符号表</h2>
+<p>拿到的样本为 x86 架构、静态编译，且去除了符号表，在 lscan/bindiff 无解后只能选择硬怼。根据 syscall 调用、上下文推断出了大部分符号：</p>
+<p><img src="1.jpeg" alt=""></p>
+<h2 id="启动项">启动项</h2>
+<p>木马跑起来后会先进行一次 fork，设置 daemon：</p>
+<p><img src="2.jpeg" alt=""></p>
+<p>而后进行第二次 fork，父进程中通过写 crontab 作启动项，这在之前的 IoT 木马中是没有见过的：</p>
+<p><img src="3.jpeg" alt=""></p>
+<p><img src="4.jpeg" alt=""></p>
+<h2 id="解密敏感字符串">解密敏感字符串</h2>
+<p>子进程中解密所需字符串及 Stage 2 下载地址：</p>
+<p><img src="5.webp" alt=""></p>
+<p><img src="6.jpeg" alt=""></p>
+<p>对加解密实在是不了解，直接写脚本模拟执行跑了下：</p>
+<p><img src="7.jpeg" alt=""></p>
+<p>结果如下：</p>
+<p><img src="8.jpeg" alt=""></p>
+<h2 id="下载-stage-2">下载 Stage 2</h2>
+<p>解密之后首先判断互斥体，避免多次运行：</p>
+<p><img src="9.webp" alt=""></p>
+<p>写入SSL密钥后，尝试多种方式下载 Stage 2：</p>
+<p><img src="10.jpeg" alt=""></p>
+<h3 id="1-request_stage2_urls">1) request_stage2_urls</h3>
+<p>请求 photobucket.com，下载图片：</p>
+<p><img src="11.jpeg" alt=""></p>
+<p>其中 photobucket.com 的地址来自于 0x08048b70 处的解密。</p>
+<p><img src="12.jpeg" alt=""></p>
+<p><img src="13.jpeg" alt=""></p>
+<p>这一处 Exif 隐写 IP 可以说是此木马中比较亮眼的点之一，很优秀。</p>
+<h3 id="2-request_backup_stage2_url">2) request_backup_stage2_url</h3>
+<p>与 request_stage2_urls 的唯一区别是此处的图片地址直接来源自程序解密，即 <a href="http://toknowall.com/manage/content/update.php">http://toknowall.com/manage/content/update.php</a>。</p>
+<h3 id="3-listen_for_trigger_packet">3) listen_for_trigger_packet</h3>
+<p>这是此木马中另一个较亮眼的点。</p>
+<p>如果两次图片下载都失败，木马将监听本地 socket：</p>
+<p><img src="14.webp" alt=""></p>
+<p>监听到报文后进行多次判断（目的IP、报文长度、Magic Char），提取 Stage 2 Server IP：</p>
+<p><img src="15.jpeg" alt=""></p>
+<p>并且下载后还对 Stage 2 长度进行判断，大于 1000 才返回。</p>
+<p>之后的流程就简单了，写入 Stage 2、添加执行权限，fork 运行：</p>
+<p><img src="16.jpeg" alt=""></p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>Decrypt PHP&#39;s eval based encryption with debugger - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>Decrypt PHP&#39;s eval based encryption with debugger</h1>
+        <div>
+            <time datetime="2017-10-13 16:05:44 +0800 CST">发布时间: 2017-10-13 16:05</time>
+            <time datetime="2017-10-13 16:05:44 +0800 CST">更新时间: 2017-10-13 16:05</time>
+        </div>
+    </header>
+
+    <section>
+    <h2 id="1-概述">1. 概述</h2>
+<p>有很多 PHP 脚本的加密是通过把代码进行字符串混淆后放入到 <code>eval</code> 中执行实现的，如 phpjiami、weevely 等。</p>
+<p>无论什么语言，对于此种加密的一个通用解法就是 hook 执行函数，以 PHP 为例，<code>eval</code> 最终调用的是底层的 <code>zend_compile_string</code>，只需要提取出调用它时传递的参数就可以实现解密。</p>
+<p>hook 的可以通过很多方式实现，比如编写语言扩展、动态调试等。这里所介绍的就是通过动态调试的方法提取函数参数。</p>
+<h2 id="2-原理">2. 原理</h2>
+<p>Zend 虚拟机启动时，会将 <code>compile_string</code> 赋值给 <code>zend_compile_string</code>：</p>
+<p><img src="1.png" alt=""></p>
+<p>为了方便可直接将断点下到 <code>compile_string</code> 函数上，跟进它看下函数定义：</p>
+<p><img src="2.png" alt=""></p>
+<p>参数 <code>source_string</code> 即为动态执行的代码，类型为 <code>zval</code>，<code>zval</code> 定义如下：</p>
+<p><img src="3.png" alt=""></p>
+<p>所以在调试器中可以通过 <code>((*(zval *)source_string).value.str).val</code> 打印出代码。</p>
+<p>龚老板文章中还有提到 phpjiami 在解密的过程中还会校验 <code>sapi_name</code>：</p>
+<p><img src="4.png" alt=""></p>
+<p>在调试器环境下这些防护很容易搞定，直接对其赋值就好：</p>
+<p><img src="5.png" alt=""></p>
+<h2 id="3-具体实现">3. 具体实现</h2>
+<p>具体实现的代码如下：</p>
+<p><img src="6.jpeg" alt=""></p>
+<p>封了个 Docker 镜像：<a href="https://hub.docker.com/r/h4ck/php-decrypt-eval/">Docker Hub</a></p>
+<p>最终效果：</p>
+<p><img src="7.jpeg" alt=""></p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

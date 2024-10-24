@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>pwnable.kr 刷题 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>pwnable.kr 刷题</h1>
+        <div>
+            <time datetime="2017-02-14 11:22:28 +0800 CST">发布时间: 2017-02-14 11:22</time>
+            <time datetime="2017-02-17 17:16:28 +0800 CST">更新时间: 2017-02-17 17:16</time>
+        </div>
+    </header>
+
+    <section>
+    <h2 id="lotto---2-pt">lotto - 2 pt</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">// generate lotto numbers
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> fd <span style="color:#f92672">=</span> <span style="color:#a6e22e">open</span>(<span style="color:#e6db74">&#34;/dev/urandom&#34;</span>, O_RDONLY);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(fd<span style="color:#f92672">==-</span><span style="color:#ae81ff">1</span>){
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">printf</span>(<span style="color:#e6db74">&#34;error. tell admin</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">exit</span>(<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">char</span> lotto[<span style="color:#ae81ff">6</span>];
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(<span style="color:#a6e22e">read</span>(fd, lotto, <span style="color:#ae81ff">6</span>) <span style="color:#f92672">!=</span> <span style="color:#ae81ff">6</span>){
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">printf</span>(<span style="color:#e6db74">&#34;error2. tell admin</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">exit</span>(<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span>(i<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>; i<span style="color:#f92672">&lt;</span><span style="color:#ae81ff">6</span>; i<span style="color:#f92672">++</span>){
+</span></span><span style="display:flex;"><span>    lotto[i] <span style="color:#f92672">=</span> (lotto[i] <span style="color:#f92672">%</span> <span style="color:#ae81ff">45</span>) <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>;		<span style="color:#75715e">// 1 ~ 45
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>}
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">close</span>(fd);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// calculate lotto score
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">int</span> match <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>, j <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span>(i<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>; i<span style="color:#f92672">&lt;</span><span style="color:#ae81ff">6</span>; i<span style="color:#f92672">++</span>){
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span>(j<span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>; j<span style="color:#f92672">&lt;</span><span style="color:#ae81ff">6</span>; j<span style="color:#f92672">++</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// bug
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span>(lotto[i] <span style="color:#f92672">==</span> submit[j]){
+</span></span><span style="display:flex;"><span>            match<span style="color:#f92672">++</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// win!
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">if</span>(match <span style="color:#f92672">==</span> <span style="color:#ae81ff">6</span>){
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">system</span>(<span style="color:#e6db74">&#34;/bin/cat flag&#34;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>数字从 /dev/urandom 读入，范围是 1 ~ 45。而判断的过程是进行了两次 for 循环，这样成功的概率还是很大的。用 1 ~ 45 中的可显字符（33 ~ 45）测试几次就出来了：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>➜  pwnable/lotto ./lotto
+</span></span><span style="display:flex;"><span>- Select Menu -
+</span></span><span style="display:flex;"><span>1. Play Lotto
+</span></span><span style="display:flex;"><span>2. Help
+</span></span><span style="display:flex;"><span>3. Exit
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>Submit your <span style="color:#ae81ff">6</span> lotto bytes : ------
+</span></span><span style="display:flex;"><span>Lotto Start!
+</span></span><span style="display:flex;"><span>bad luck...
+</span></span><span style="display:flex;"><span>- Select Menu -
+</span></span><span style="display:flex;"><span>1. Play Lotto
+</span></span><span style="display:flex;"><span>2. Help
+</span></span><span style="display:flex;"><span>3. Exit
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>Submit your <span style="color:#ae81ff">6</span> lotto bytes : ------
+</span></span><span style="display:flex;"><span>Lotto Start!
+</span></span><span style="display:flex;"><span>bad luck...
+</span></span><span style="display:flex;"><span>- Select Menu -
+</span></span><span style="display:flex;"><span>1. Play Lotto
+</span></span><span style="display:flex;"><span>2. Help
+</span></span><span style="display:flex;"><span>3. Exit
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>Submit your <span style="color:#ae81ff">6</span> lotto bytes : ------
+</span></span><span style="display:flex;"><span>Lotto Start!
+</span></span><span style="display:flex;"><span>sorry mom... I FORGOT to check duplicate numbers... :<span style="color:#f92672">(</span>
+</span></span><span style="display:flex;"><span>- Select Menu -
+</span></span><span style="display:flex;"><span>1. Play Lotto
+</span></span><span style="display:flex;"><span>2. Help
+</span></span><span style="display:flex;"><span>3. Exit
+</span></span></code></pre></div><h2 id="codemap---10-pt">codemap - 10 pt</h2>
+<p>题目连续申请 1000 块 heap chunk，每次大小随机，目的为找出最大的三个块。程序结束后会输出最大的块及其内容，更新最大块的逻辑在 0x00BD3E62 ~ 0x00BD3E6A：</p>
+<pre tabindex="0"><code>.text:00BD3E62    cmp eax, [ebp+biggestChunkSize] ; eax =&gt; current chunk size
+.text:00BD3E65    jbe short loc_BD3E6D
+.text:00BD3E67    mov [ebp+biggestChunkSize], eax
+.text:00BD3E6A    mov [ebp+var_60], ebx ; ebx =&gt; current chunk content
+</code></pre><p>编写 IDA Python 脚本，在 0x00BD3E65 处下断，触发断点时读取 eax 和 ebx 的值即可解题：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> idaapi <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> idc <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>chunks <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">DumpHook</span>(DBG_Hooks):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">dbg_bpt</span> (self,tid,ea):
+</span></span><span style="display:flex;"><span>        size <span style="color:#f92672">=</span> GetRegValue(<span style="color:#e6db74">&#34;eax&#34;</span>)
+</span></span><span style="display:flex;"><span>        ptr <span style="color:#f92672">=</span> GetRegValue(<span style="color:#e6db74">&#34;ebx&#34;</span>)
+</span></span><span style="display:flex;"><span>        content <span style="color:#f92672">=</span> dbg_read_memory(ptr, <span style="color:#ae81ff">15</span>)
+</span></span><span style="display:flex;"><span>        chunks[size] <span style="color:#f92672">=</span> content
+</span></span><span style="display:flex;"><span>        print size, hex(ptr), content
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> debugger:
+</span></span><span style="display:flex;"><span>        print <span style="color:#e6db74">&#34;Removing previous hook ...&#34;</span>
+</span></span><span style="display:flex;"><span>        debugger<span style="color:#f92672">.</span>unhook()
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">except</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">pass</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>AddBpt(<span style="color:#ae81ff">0x00033E65</span>)
+</span></span><span style="display:flex;"><span>SetBptAttr(<span style="color:#ae81ff">0x00033E65</span>, BPTATTR_FLAGS, BPT_ENABLED<span style="color:#f92672">|</span>BPT_TRACE)
+</span></span><span style="display:flex;"><span>print <span style="color:#e6db74">&#34;[*] set hook OK...&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>debugger <span style="color:#f92672">=</span> DumpHook()
+</span></span><span style="display:flex;"><span>debugger<span style="color:#f92672">.</span>hook()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># print sorted(chunks.iteritems(), key=lambda d:d[0])[:-10:-1]</span>
+</span></span></code></pre></div>
+    </section>
+</article>
+</main>
+  </body>
+</html>

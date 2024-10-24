@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>Struts2 框架执行流程 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>Struts2 框架执行流程</h1>
+        <div>
+            <time datetime="2017-03-14 19:28:20 +0800 CST">发布时间: 2017-03-14 19:28</time>
+            <time datetime="2017-03-14 19:28:20 +0800 CST">更新时间: 2017-03-14 19:28</time>
+        </div>
+    </header>
+
+    <section>
+    <ol>
+<li>
+<p>容器（Tomcat）接收到用户发送的请求：http://sh3ll.local/demo.action，选择处理该请求的应用。</p>
+</li>
+<li>
+<p>容器读取应用的 <code>web.xml</code>，在其中查找 <code>filter-mapping</code>，根据 <code>Filter</code> 的配置找到 <code>org.apache.struts2.dispatcher.FilterDispatcher</code>，回调 <code>doFilter</code> 方法，进行真正的处理。</p>
+</li>
+<li>
+<p><code>FilterDispatcher</code> 将请求转发给 <code>ActionMapper</code>，<code>ActionMapper</code> 负责判断当前请求是否需要 Struts2 进行处理。struts2-core-2.0.6.jar!/org/apache/struts2/dispatcher/FilterDispatcher.class：</p>
+</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">doFilter</span>(ServletRequest req, ServletResponse res, FilterChain chain) <span style="color:#66d9ef">throws</span> IOException, ServletException {
+</span></span><span style="display:flex;"><span>    ... snip ...
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        UtilTimerStack.<span style="color:#a6e22e">push</span>(timerKey);
+</span></span><span style="display:flex;"><span>        request <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">prepareDispatcherAndWrapRequest</span>(request, response);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        ActionMapping mapping;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>            mapping <span style="color:#f92672">=</span> actionMapper.<span style="color:#a6e22e">getMapping</span>(request, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dispatcher</span>.<span style="color:#a6e22e">getConfigurationManager</span>());
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">catch</span> (Exception var20) {
+</span></span><span style="display:flex;"><span>            LOG.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">&#34;error getting ActionMapping&#34;</span>, var20);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dispatcher</span>.<span style="color:#a6e22e">sendError</span>(request, response, servletContext, 500, var20);
+</span></span><span style="display:flex;"><span>            ActionContextCleanUp.<span style="color:#a6e22e">cleanUp</span>(req);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(mapping <span style="color:#f92672">==</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>            ... snip ...
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span>(serveStatic <span style="color:#f92672">&amp;&amp;</span> resourcePath.<span style="color:#a6e22e">startsWith</span>(<span style="color:#e6db74">&#34;/struts&#34;</span>)) {
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">// Struts2 静态资源</span>
+</span></span><span style="display:flex;"><span>                String name <span style="color:#f92672">=</span> resourcePath.<span style="color:#a6e22e">substring</span>(<span style="color:#e6db74">&#34;/struts&#34;</span>.<span style="color:#a6e22e">length</span>());
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">findStaticResource</span>(name, request, response);
+</span></span><span style="display:flex;"><span>            } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#75715e">// 不需要 Struts2 处理，继续上层调用链处理</span>
+</span></span><span style="display:flex;"><span>                chain.<span style="color:#a6e22e">doFilter</span>(request, response);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#75715e">// 通知 FilterDispatcher 处理此请求</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">dispatcher</span>.<span style="color:#a6e22e">serviceAction</span>(request, response, servletContext, mapping);
+</span></span><span style="display:flex;"><span>            } <span style="color:#66d9ef">finally</span> {
+</span></span><span style="display:flex;"><span>                ActionContextCleanUp.<span style="color:#a6e22e">cleanUp</span>(req);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    ... snip ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><ol start="4">
+<li>创建 <code>ActionProxy</code> 实例，作为 <code>Action</code> 与 <code>xwork</code> 的中间层，代理 <code>Action</code> 的运行过程。 struts2-core-2.0.6.jar!/org/apache/struts2/dispatcher/Dispatcher.class：</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">serviceAction</span>(HttpServletRequest request, HttpServletResponse response, ServletContext context, ActionMapping mapping) <span style="color:#66d9ef">throws</span> ServletException {
+</span></span><span style="display:flex;"><span>    ... snip ...
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        ... snip ...
+</span></span><span style="display:flex;"><span>        String method <span style="color:#f92672">=</span> mapping.<span style="color:#a6e22e">getMethod</span>();
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 读取配置文件获取具体 Action</span>
+</span></span><span style="display:flex;"><span>        Configuration config <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">configurationManager</span>.<span style="color:#a6e22e">getConfiguration</span>();
+</span></span><span style="display:flex;"><span>        ActionProxy proxy <span style="color:#f92672">=</span> ((ActionProxyFactory)config.<span style="color:#a6e22e">getContainer</span>().<span style="color:#a6e22e">getInstance</span>(ActionProxyFactory.<span style="color:#a6e22e">class</span>)).<span style="color:#a6e22e">createActionProxy</span>(e, name, extraContext, <span style="color:#66d9ef">true</span>, <span style="color:#66d9ef">false</span>);
+</span></span><span style="display:flex;"><span>        proxy.<span style="color:#a6e22e">setMethod</span>(method);
+</span></span><span style="display:flex;"><span>        request.<span style="color:#a6e22e">setAttribute</span>(<span style="color:#e6db74">&#34;struts.valueStack&#34;</span>, proxy.<span style="color:#a6e22e">getInvocation</span>().<span style="color:#a6e22e">getStack</span>());
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(mapping.<span style="color:#a6e22e">getResult</span>() <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>            Result result <span style="color:#f92672">=</span> mapping.<span style="color:#a6e22e">getResult</span>();
+</span></span><span style="display:flex;"><span>            result.<span style="color:#a6e22e">execute</span>(proxy.<span style="color:#a6e22e">getInvocation</span>());
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>            proxy.<span style="color:#a6e22e">execute</span>();
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    ... snip ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><ol start="5">
+<li>创建 <code>ActionInvocation</code> 对象并进行调用。在调用用户层代码的前后要进行拦截器的调用（前后顺序相反）。xwork-2.0.1.jar!/com/opensymphony/xwork2/DefaultActionInvocation.class：</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> String <span style="color:#a6e22e">invoke</span>() <span style="color:#66d9ef">throws</span> Exception {
+</span></span><span style="display:flex;"><span>    String profileKey <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;invoke: &#34;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    String iterator2;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        UtilTimerStack.<span style="color:#a6e22e">push</span>(profileKey);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">executed</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">throw</span> <span style="color:#66d9ef">new</span> IllegalStateException(<span style="color:#e6db74">&#34;Action has already executed&#34;</span>);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">interceptors</span>.<span style="color:#a6e22e">hasNext</span>()) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">final</span> InterceptorMapping iterator <span style="color:#f92672">=</span> (InterceptorMapping)<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">interceptors</span>.<span style="color:#a6e22e">next</span>();
+</span></span><span style="display:flex;"><span>            UtilTimerStack.<span style="color:#a6e22e">profile</span>(<span style="color:#e6db74">&#34;interceptor: &#34;</span> <span style="color:#f92672">+</span> iterator.<span style="color:#a6e22e">getName</span>(), <span style="color:#66d9ef">new</span> ProfilingBlock() {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">public</span> String <span style="color:#a6e22e">doProfiling</span>() <span style="color:#66d9ef">throws</span> Exception {
+</span></span><span style="display:flex;"><span>                    DefaultActionInvocation.<span style="color:#a6e22e">this</span>.<span style="color:#a6e22e">resultCode</span> <span style="color:#f92672">=</span> iterator.<span style="color:#a6e22e">getInterceptor</span>().<span style="color:#a6e22e">intercept</span>(DefaultActionInvocation.<span style="color:#a6e22e">this</span>);
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">null</span>;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            });
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">resultCode</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">invokeActionOnly</span>();
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(<span style="color:#f92672">!</span><span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">executed</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">preResultListeners</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>                Iterator iterator1 <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">preResultListeners</span>.<span style="color:#a6e22e">iterator</span>();
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">while</span>(iterator1.<span style="color:#a6e22e">hasNext</span>()) {
+</span></span><span style="display:flex;"><span>                    PreResultListener listener <span style="color:#f92672">=</span> (PreResultListener)iterator1.<span style="color:#a6e22e">next</span>();
+</span></span><span style="display:flex;"><span>                    String _profileKey <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;preResultListener: &#34;</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>                        UtilTimerStack.<span style="color:#a6e22e">push</span>(_profileKey);
+</span></span><span style="display:flex;"><span>                        listener.<span style="color:#a6e22e">beforeResult</span>(<span style="color:#66d9ef">this</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">resultCode</span>);
+</span></span><span style="display:flex;"><span>                    } <span style="color:#66d9ef">finally</span> {
+</span></span><span style="display:flex;"><span>                        UtilTimerStack.<span style="color:#a6e22e">pop</span>(_profileKey);
+</span></span><span style="display:flex;"><span>                    }
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">proxy</span>.<span style="color:#a6e22e">getExecuteResult</span>()) {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">executeResult</span>();
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">executed</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">true</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        iterator2 <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">resultCode</span>;
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">finally</span> {
+</span></span><span style="display:flex;"><span>        UtilTimerStack.<span style="color:#a6e22e">pop</span>(profileKey);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> iterator2;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><ol start="6">
+<li>
+<p>调用用户层代码 <code>Action</code> 的 <code>execute</code> 方法，根据其返回结果去配置文件中选择结果页面（view 层）进行渲染，生成最终页面。</p>
+</li>
+<li>
+<p><code>ActionInvocation</code> 对象执行完毕后，将得到的响应对象展示给客户端。</p>
+</li>
+</ol>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

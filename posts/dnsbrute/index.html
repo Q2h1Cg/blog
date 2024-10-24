@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>打造高速、全面的子域名爆破 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>打造高速、全面的子域名爆破</h1>
+        <div>
+            <time datetime="2017-04-04 12:22:25 +0800 CST">发布时间: 2017-04-04 12:22</time>
+            <time datetime="2017-04-13 23:54:25 +0800 CST">更新时间: 2017-04-13 23:54</time>
+        </div>
+    </header>
+
+    <section>
+    <p><a href="https://github.com/Q2h1Cg/dnsbrute">GitHub</a></p>
+<p>子域名爆破往往是渗透测试的第一步，是收集 IP 信息、脆弱点的前置条件。</p>
+<p>之前测试了目前社区中的子域名爆破软件，都不是很满意，主要问题可归结为：</p>
+<ul>
+<li>速度慢</li>
+<li>结果不全</li>
+<li>对泛解析的未做处理或处理方式过于粗暴</li>
+</ul>
+<ol>
+<li>速度慢</li>
+</ol>
+<p>DNS 协议简单，查询流程简单，大部分语言库中也都有 DNS 查询相关的函数。而子域名爆破实际就是对每个子域名进行 DNS 查询，若存在相应解析记录则证明该子域名存在。伪代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">with</span> open(<span style="color:#e6db74">&#34;dict.txt&#34;</span>) <span style="color:#66d9ef">as</span> fd:
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> line <span style="color:#f92672">in</span> fd:
+</span></span><span style="display:flex;"><span>        subdomain <span style="color:#f92672">=</span> line<span style="color:#f92672">.</span>strip() <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;.&#34;</span> <span style="color:#f92672">+</span> domain
+</span></span><span style="display:flex;"><span>        client <span style="color:#f92672">=</span> dns<span style="color:#f92672">.</span>client(dns_server_addr)
+</span></span><span style="display:flex;"><span>        record <span style="color:#f92672">=</span> client<span style="color:#f92672">.</span>recolve(subdomain)
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> record:
+</span></span><span style="display:flex;"><span>            log<span style="color:#f92672">.</span>info(subdomain, record)
+</span></span></code></pre></div><p>一般通过多线程/多进程的方式将查询并发进行，这样做存在的问题有：</p>
+<ul>
+<li>多线程/多进程并发的上限取决于系统的文件描述符的限制（linux 默认为 1024，可手动调整：ulimit -n），这使得实际网络 IO 速度远远小于上下行带宽限制。</li>
+<li>每次查询都是基于一个完整的 socket 连接，处理连接、等待 IO 造成了大量不必要的时间、性能开销。</li>
+</ul>
+<p>解决办法参考了 masscan/zmap 的无状态思路：对于每个 DNS socket 连接，开启两个协程：一个协程负责发送，另一个负责接收。伪代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#a6e22e">client</span> = <span style="color:#a6e22e">dns</span>.<span style="color:#a6e22e">client</span>(<span style="color:#a6e22e">dns_server_addr</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">go</span> <span style="color:#66d9ef">func</span>(){
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">with</span> <span style="color:#a6e22e">open</span>(<span style="color:#e6db74">&#34;dict.txt&#34;</span>) <span style="color:#a6e22e">as</span> <span style="color:#a6e22e">fd</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">line</span> <span style="color:#a6e22e">in</span> <span style="color:#a6e22e">fd</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">subdomain</span> = <span style="color:#a6e22e">line</span>.<span style="color:#a6e22e">strip</span>() <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;.&#34;</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">domain</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">client</span>.<span style="color:#a6e22e">send</span>(<span style="color:#a6e22e">subdomain</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">sleep</span>(<span style="color:#a6e22e">delay</span>)
+</span></span><span style="display:flex;"><span>}()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">while</span> <span style="color:#a6e22e">True</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">record</span> = <span style="color:#a6e22e">client</span>.<span style="color:#a6e22e">recv</span>()
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> <span style="color:#a6e22e">record</span>.<span style="color:#a6e22e">valid</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">log</span>.<span style="color:#a6e22e">info</span>(<span style="color:#a6e22e">record</span>)
+</span></span></code></pre></div><p>测试环境下开启 20 个 DNS socket 连接时，每秒可查询近 10000 域名，通过调整连接数与发送间隔，可打满上下行带宽。</p>
+<ol start="2">
+<li>结果不全</li>
+</ol>
+<p>单纯依赖字典必定会导致爆破结果不全，可以通过采集网上的一些域名接口，如 hackertarget.com、ptrarchive.com 等来丰富爆破结果。</p>
+<ol start="3">
+<li>泛解析</li>
+</ol>
+<p>泛解析一直都是域名爆破中的大问题，目前的解决思路是根据确切不存在的子域名记录（md5(domain).domain）获取黑名单 IP，对爆破过程的结果进行黑名单过滤。</p>
+<p>但这种宽泛的过滤很容易导致漏报，如泛解析记录为 1.1.1.1，但某存在子域名也指向 1.1.1.1，此时这个子域名便可能会被黑名单过滤掉。</p>
+<p>胖学弟提到，可以将 TTL 也作为黑名单规则的一部分，评判的依据是：在权威 DNS 中，泛解析记录的 TTL 肯定是相同的，如果子域名记录相同，但 TTL 不同，那这条记录可以说肯定不是泛解析记录。最终的判断代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span>    <span style="color:#75715e">// IsPanDNSRecord 是否为泛解析记录
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">func</span> <span style="color:#a6e22e">IsPanDNSRecord</span>(<span style="color:#a6e22e">record</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">ttl</span> <span style="color:#66d9ef">uint32</span>) <span style="color:#66d9ef">bool</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">_ttl</span>, <span style="color:#a6e22e">ok</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">panDNSRecords</span>[<span style="color:#a6e22e">TrimSuffixPoint</span>(<span style="color:#a6e22e">record</span>)]
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 若记录不存在于黑名单列表，不是泛解析
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#75715e">// 若记录存在，且与黑名单中的 ttl 不等但都是 60（1min）的倍数，不是泛解析
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">ok</span> <span style="color:#f92672">||</span> (<span style="color:#a6e22e">_ttl</span> <span style="color:#f92672">!=</span> <span style="color:#a6e22e">ttl</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">_ttl</span><span style="color:#f92672">%</span><span style="color:#ae81ff">60</span> <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">ttl</span><span style="color:#f92672">%</span><span style="color:#ae81ff">60</span> <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div>
+    </section>
+</article>
+</main>
+  </body>
+</html>

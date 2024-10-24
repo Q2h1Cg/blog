@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>S2-001 调试分析 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>S2-001 调试分析</h1>
+        <div>
+            <time datetime="2017-03-15 22:13:00 +0800 CST">发布时间: 2017-03-15 22:13</time>
+            <time datetime="2017-06-08 16:15:00 +0800 CST">更新时间: 2017-06-08 16:15</time>
+        </div>
+    </header>
+
+    <section>
+    <p>应用中的认证函数添加错误：<code>ActionSupport.addFieldError</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">validate</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (username <span style="color:#f92672">==</span> <span style="color:#66d9ef">null</span> <span style="color:#f92672">||</span> username.<span style="color:#a6e22e">trim</span>().<span style="color:#a6e22e">equals</span>(<span style="color:#e6db74">&#34;&#34;</span>)) {
+</span></span><span style="display:flex;"><span>        addFieldError(<span style="color:#e6db74">&#34;username&#34;</span>, <span style="color:#e6db74">&#34;UserName is required&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (phoneNumber <span style="color:#f92672">==</span> <span style="color:#66d9ef">null</span> <span style="color:#f92672">||</span> phoneNumber.<span style="color:#a6e22e">trim</span>().<span style="color:#a6e22e">equals</span>(<span style="color:#e6db74">&#34;&#34;</span>)) {
+</span></span><span style="display:flex;"><span>        addFieldError(<span style="color:#e6db74">&#34;phoneNumber&#34;</span>, <span style="color:#e6db74">&#34;PhoneNumber is required&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>判断是否验证失败：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#75715e">// xwork-2.0.1.jar!/com/opensymphony/xwork2/interceptor/DefaultWorkflowInterceptor.class</span>
+</span></span><span style="display:flex;"><span>... snip ...
+</span></span><span style="display:flex;"><span><span style="color:#75715e">// 是否验证失败</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(validationAwareAction1.<span style="color:#a6e22e">hasErrors</span>()) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>(_log.<span style="color:#a6e22e">isDebugEnabled</span>()) {
+</span></span><span style="display:flex;"><span>        _log.<span style="color:#a6e22e">debug</span>(<span style="color:#e6db74">&#34;Errors on action &#34;</span> <span style="color:#f92672">+</span> validationAwareAction1 <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;, returning result name \&#39;input\&#39;&#34;</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">inputResultName</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>经过过滤器后进入到页面渲染，由外至内解析标签（form=&gt;textfield=&gt;submit）：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#75715e">// struts2-core-2.0.6.jar!/org/apache/struts2/views/jsp/ComponentTagSupport.class</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">doEndTag</span>() <span style="color:#66d9ef">throws</span> JspException {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">component</span>.<span style="color:#a6e22e">end</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">pageContext</span>.<span style="color:#a6e22e">getOut</span>(), <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">getBody</span>());
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">component</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">null</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> 6;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">int</span> <span style="color:#a6e22e">doStartTag</span>() <span style="color:#66d9ef">throws</span> JspException {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">component</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">getBean</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">getStack</span>(), (HttpServletRequest)<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">pageContext</span>.<span style="color:#a6e22e">getRequest</span>(), (HttpServletResponse)<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">pageContext</span>.<span style="color:#a6e22e">getResponse</span>());
+</span></span><span style="display:flex;"><span>    Container container <span style="color:#f92672">=</span> Dispatcher.<span style="color:#a6e22e">getInstance</span>().<span style="color:#a6e22e">getContainer</span>();
+</span></span><span style="display:flex;"><span>    container.<span style="color:#a6e22e">inject</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">component</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">populateParams</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">boolean</span> evalBody <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">component</span>.<span style="color:#a6e22e">start</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">pageContext</span>.<span style="color:#a6e22e">getOut</span>());
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> evalBody<span style="color:#f92672">?</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">component</span>.<span style="color:#a6e22e">usesBody</span>()<span style="color:#f92672">?</span>2:1):0;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>首先执行 <code>doStartTag</code>，标签闭合时执行 <code>doEndTag</code>，调试发现经过 <code>doEndTag</code> 后 Payload 得以执行，跟进之，随后跟进至 <code>component.end</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#75715e">// struts2-core-2.0.6.jar!/org/apache/struts2/components/UIBean.class</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">boolean</span> <span style="color:#a6e22e">end</span>(Writer writer, String body) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">evaluateParams</span>();	<span style="color:#75715e">// 遍历标签属性</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">super</span>.<span style="color:#a6e22e">end</span>(writer, body, <span style="color:#66d9ef">false</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">mergeTemplate</span>(writer, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">buildTemplateName</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">template</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">getDefaultTemplate</span>()));
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">catch</span> (Exception var7) {
+</span></span><span style="display:flex;"><span>        LOG.<span style="color:#a6e22e">error</span>(<span style="color:#e6db74">&#34;error when rendering&#34;</span>, var7);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">finally</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">popComponentStack</span>();
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>跟进 <code>evaluateParams</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">void</span> <span style="color:#a6e22e">evaluateParams</span>() {
+</span></span><span style="display:flex;"><span>    ... snip ...
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">name</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>        name <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">findString</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">name</span>);  <span style="color:#75715e">// 查询标签 name</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">addParameter</span>(<span style="color:#e6db74">&#34;name&#34;</span>, name);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 添加标签值至参数列表，供错误页面显示</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">parameters</span>.<span style="color:#a6e22e">containsKey</span>(<span style="color:#e6db74">&#34;value&#34;</span>)) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">parameters</span>.<span style="color:#a6e22e">put</span>(<span style="color:#e6db74">&#34;nameValue&#34;</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">parameters</span>.<span style="color:#a6e22e">get</span>(<span style="color:#e6db74">&#34;value&#34;</span>));
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">evaluateNameValue</span>()) {   <span style="color:#75715e">// 是否取出标签的值，函数返回 true</span>
+</span></span><span style="display:flex;"><span>        Class form <span style="color:#f92672">=</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">getValueClassType</span>();
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(form <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">value</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">addParameter</span>(<span style="color:#e6db74">&#34;nameValue&#34;</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">findValue</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">value</span>, form));
+</span></span><span style="display:flex;"><span>            } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span>(name <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>                String tooltipConfigMap <span style="color:#f92672">=</span> name;
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">altSyntax</span>()) {  <span style="color:#75715e">// 若开启 altSyntax，拼接查询语句</span>
+</span></span><span style="display:flex;"><span>                                        <span style="color:#75715e">// altSyntax 属性指定是否允许在 Struts2 标签中使用表达式语法，默认值是true</span>
+</span></span><span style="display:flex;"><span>                    tooltipConfigMap <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;%{&#34;</span> <span style="color:#f92672">+</span> name <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;}&#34;</span>;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">addParameter</span>(<span style="color:#e6db74">&#34;nameValue&#34;</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">findValue</span>(tooltipConfigMap, form)); <span style="color:#75715e">// 查询并添加结果至参数列表</span>
+</span></span><span style="display:flex;"><span>                                                                                        <span style="color:#75715e">// 查询语句为 %{name}</span>
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">value</span> <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">addParameter</span>(<span style="color:#e6db74">&#34;nameValue&#34;</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">findValue</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">value</span>));
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span>(name <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">addParameter</span>(<span style="color:#e6db74">&#34;nameValue&#34;</span>, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">findValue</span>(name));
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>... snip ...
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>跟进 <code>findValue</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#75715e">// struts2-core-2.0.6.jar!/org/apache/struts2/components/Component.class</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">protected</span> Object <span style="color:#a6e22e">findValue</span>(String expr, Class toType) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">altSyntax</span>() <span style="color:#f92672">&amp;&amp;</span> toType <span style="color:#f92672">==</span> String.<span style="color:#a6e22e">class</span>) {    <span style="color:#75715e">// 若开启 altSyntax 进入 TextParseUtil.translateVariables，</span>
+</span></span><span style="display:flex;"><span>                                                        <span style="color:#75715e">// 对表达式进行解析</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> TextParseUtil.<span style="color:#a6e22e">translateVariables</span>(<span style="color:#e6db74">&#39;%&#39;</span>, expr, <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">stack</span>);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">altSyntax</span>() <span style="color:#f92672">&amp;&amp;</span> expr.<span style="color:#a6e22e">startsWith</span>(<span style="color:#e6db74">&#34;%{&#34;</span>) <span style="color:#f92672">&amp;&amp;</span> expr.<span style="color:#a6e22e">endsWith</span>(<span style="color:#e6db74">&#34;}&#34;</span>)) {
+</span></span><span style="display:flex;"><span>            expr <span style="color:#f92672">=</span> expr.<span style="color:#a6e22e">substring</span>(2, expr.<span style="color:#a6e22e">length</span>() <span style="color:#f92672">-</span> 1);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">getStack</span>().<span style="color:#a6e22e">findValue</span>(expr, toType);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>继续跟进 <code>TextParseUtil.translateVariables</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-java" data-lang="java"><span style="display:flex;"><span><span style="color:#75715e">// xwork-2.0.1.jar!/com/opensymphony/xwork2/util/TextParseUtil.class</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">static</span> Object <span style="color:#a6e22e">translateVariables</span>(<span style="color:#66d9ef">char</span> open, String expression, ValueStack stack, Class asType, TextParseUtil.<span style="color:#a6e22e">ParsedValueEvaluator</span> evaluator) {
+</span></span><span style="display:flex;"><span>    Object result <span style="color:#f92672">=</span> expression; <span style="color:#75715e">// 表达式，%{name}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span>(<span style="color:#66d9ef">true</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> start <span style="color:#f92672">=</span> expression.<span style="color:#a6e22e">indexOf</span>(open <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;{&#34;</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> length <span style="color:#f92672">=</span> expression.<span style="color:#a6e22e">length</span>();
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> x <span style="color:#f92672">=</span> start <span style="color:#f92672">+</span> 2;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> count <span style="color:#f92672">=</span> 1;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 匹配 %{key}</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">while</span>(start <span style="color:#f92672">!=</span> <span style="color:#f92672">-</span>1 <span style="color:#f92672">&amp;&amp;</span> x <span style="color:#f92672">&lt;</span> length <span style="color:#f92672">&amp;&amp;</span> count <span style="color:#f92672">!=</span> 0) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">char</span> c <span style="color:#f92672">=</span> expression.<span style="color:#a6e22e">charAt</span>(x<span style="color:#f92672">++</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span>(c <span style="color:#f92672">==</span> 123) {
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">++</span>count;
+</span></span><span style="display:flex;"><span>            } <span style="color:#66d9ef">else</span> <span style="color:#66d9ef">if</span>(c <span style="color:#f92672">==</span> 125) {
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">--</span>count;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">int</span> end <span style="color:#f92672">=</span> x <span style="color:#f92672">-</span> 1;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(start <span style="color:#f92672">==</span> <span style="color:#f92672">-</span>1 <span style="color:#f92672">||</span> end <span style="color:#f92672">==</span> <span style="color:#f92672">-</span>1 <span style="color:#f92672">||</span> count <span style="color:#f92672">!=</span> 0) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> XWorkConverter.<span style="color:#a6e22e">getInstance</span>().<span style="color:#a6e22e">convertValue</span>(stack.<span style="color:#a6e22e">getContext</span>(), result, asType);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 提取表达式 %{name} =&gt; name</span>
+</span></span><span style="display:flex;"><span>        String <span style="color:#66d9ef">var</span> <span style="color:#960050;background-color:#1e0010">= </span>expression.<span style="color:#a6e22e">substring</span>(start <span style="color:#f92672">+</span> 2, end);
+</span></span><span style="display:flex;"><span>        Object o <span style="color:#f92672">=</span> stack.<span style="color:#a6e22e">findValue</span>(var, asType);    <span style="color:#75715e">// 取得标签值 o</span>
+</span></span><span style="display:flex;"><span>                                                    <span style="color:#75715e">// 进入 OGNL!</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(evaluator <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>            o <span style="color:#f92672">=</span> evaluator.<span style="color:#a6e22e">evaluate</span>(o);
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        String left <span style="color:#f92672">=</span> expression.<span style="color:#a6e22e">substring</span>(0, start);
+</span></span><span style="display:flex;"><span>        String right <span style="color:#f92672">=</span> expression.<span style="color:#a6e22e">substring</span>(end <span style="color:#f92672">+</span> 1);
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// o 存在，这里为 Payload %{1+1}</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#75715e">// 递归解析表达式，也就是说最终 Payload 将变为 1+1，进入 OGNL 最终得以执行！</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span>(o <span style="color:#f92672">!=</span> <span style="color:#66d9ef">null</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span>(TextUtils.<span style="color:#a6e22e">stringSet</span>(left)) {
+</span></span><span style="display:flex;"><span>                result <span style="color:#f92672">=</span> left <span style="color:#f92672">+</span> o;
+</span></span><span style="display:flex;"><span>            } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>                result <span style="color:#f92672">=</span> o;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span>(TextUtils.<span style="color:#a6e22e">stringSet</span>(right)) {
+</span></span><span style="display:flex;"><span>                result <span style="color:#f92672">=</span> result <span style="color:#f92672">+</span> right;
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            expression <span style="color:#f92672">=</span> left <span style="color:#f92672">+</span> o <span style="color:#f92672">+</span> right;
+</span></span><span style="display:flex;"><span>        } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>            result <span style="color:#f92672">=</span> left <span style="color:#f92672">+</span> right;
+</span></span><span style="display:flex;"><span>            expression <span style="color:#f92672">=</span> left <span style="color:#f92672">+</span> right;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>至此，S2-001 的漏洞原理已经很清晰，Struts2 的 OGNL 解析函数递归解析，导致提交的恶意代码最终会作为 OGNL 语句得以执行：</p>
+<pre tabindex="0"><code>// Payload: username=%{1+1}
+// Payload for real world：%{@java.lang.Runtime@getRuntime().exec(&#34;/usr/bin/gnome-calculator&#34;)}
+%{name} =&gt; %{username} =&gt; %{1+1} =&gt; 2
+</code></pre><p>官方修复方案也是取消了递归解析：</p>
+<blockquote>
+<p>As of XWork 2.0.4, the OGNL parsing is changed so that it is not recursive. Therefore, in the example above, the result will be the expected %{1+1}. You can either obtain the WebWork 2.0.4 or Struts 2.0.9, which contains the corrected XWork library. Alternatively, you can obtain the patch and apply it to the XWork source code yourself.</p>
+</blockquote>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

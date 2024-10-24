@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>某防火墙远程命令执行 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>某防火墙远程命令执行</h1>
+        <div>
+            <time datetime="2017-11-15 18:39:37 +0800 CST">发布时间: 2017-11-15 18:39</time>
+            <time datetime="2017-11-15 18:39:37 +0800 CST">更新时间: 2017-11-15 18:39</time>
+        </div>
+    </header>
+
+    <section>
+    <h2 id="后门账号">后门账号</h2>
+<p>防火墙的管理服务默认运行在 22、23 端口，需登录才能使用，默认的管理员用户密码为 administrator/bane@7766。除此此外，系统中还存在另一个用户：dump/dump，此用户在官方文档中并未提及，或者可以称为后门账号？</p>
+<h2 id="dumpsh-命令注入">dumpsh 命令注入</h2>
+<h3 id="漏洞原理">漏洞原理</h3>
+<p>dump 用户登录后的 console 为 dumpsh，该程序内对关键字做了较完善的黑名单+白名单过滤。</p>
+<p>如图，程序中过滤了大量字符以避免命令注入：</p>
+<p><img src="1.webp" alt=""></p>
+<p>具体实现为：</p>
+<p><img src="2.webp" alt=""></p>
+<p>被过滤的字符为：<code>;&lt;&gt;|`&amp;~!@#$%^*()\/'</code></p>
+<p>并且限制了命令必须为 arp、closs、cpu、tcpdump 等其中之一：</p>
+<p><img src="3.webp" alt=""></p>
+<p>若命令为 tcpdump 则进入到 <code>parse_tcpdump</code> 函数，其中又过滤了 <code>-w</code>、<code>-f</code>、<code>-F</code> 参数：</p>
+<p><img src="5.webp" alt=""></p>
+<p>最后调用 <code>system</code> 执行命令：</p>
+<p><img src="6.webp" alt=""></p>
+<h3 id="绕过字符过滤">绕过字符过滤</h3>
+<p>可以看到用户的输入被带入到 <code>system</code> 函数中，但程序做了较严格的过滤导致无法注入特殊字符。这里的绕过用到了一个 tcpdump 命令的 tip，<code>-z</code> 参数：</p>
+<p><img src="7.webp" alt=""></p>
+<p>通过 <code>-z</code> 参数可以执行一个 binary 文件，测试如下：</p>
+<p><img src="8.webp" alt=""></p>
+<p>但问题是这个执行的命令不能自定义参数，只提供了 file 即保存的文件名一个参数，也就是说实际上执行的命令是 <code>cowsay /tmp/1</code>。那如何利用这个参数去执行自定义的命令呢？我想到的一个办法是「执行可以执行命令的程序」。</p>
+<p>说起来比较绕，举个栗子：vi、ftp 等，以 vi 为例，执行如下命令：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>tcpdump -n -i eth0 -G1 wrfile -z vi
+</span></span></code></pre></div><p>然后在 vi 中执行命令或读写文件：</p>
+<p>读写文件：<code>e /etc/passwd</code></p>
+<p><img src="9.jpeg" alt=""></p>
+<p>执行命令：<code>!ls</code></p>
+<p><img src="10.jpeg" alt=""></p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>
