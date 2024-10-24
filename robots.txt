@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://sh3ll.me/sitemap.xml
