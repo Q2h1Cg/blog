@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>is_numeric() &amp; php://filter - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.ee4a618df935f0a2b9d9e99663fcbefb3605c141a5835bb785b399615d5fac1e.css" integrity="sha256-7kphjfk18KK52emWY/y&#43;&#43;zYFwUGlg1u3hbOZYV1frB4=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>is_numeric() &amp; php://filter</h1>
+        <div>
+            <time datetime="2014-03-14 20:46:25 +0800 CST">发布时间: 2014-03-14 20:46</time>
+            <time datetime="2014-03-14 20:46:25 +0800 CST">更新时间: 2014-03-14 20:46</time>
+        </div>
+    </header>
+
+    <section>
+    <h2 id="is_numeric">is_numeric()</h2>
+<p>可通过16 进制或2 进制编码绕过，导致二次注入。 如 hackyou2014 CTF web100 中可通过构造</p>
+<pre tabindex="0"><code>-1 union select user() ==&gt; 0x2d3120756e696f6e2073656c65637420757365722829
+</code></pre><p>进行注入。</p>
+<h2 id="phpfilter-phpinput-data-url-schema-让-lfi-发挥更大作用">php://filter, php://input, data URL schema 让 LFI 发挥更大作用</h2>
+<p>php://filter 可用来读取文件源码：</p>
+<pre tabindex="0"><code>?page=php://filter/read=convert.base64-encode/resource=index.php
+</code></pre><p>php://input，data URL schema 可用来执行 php 代码，但是要求 allow_url_include 为 On（默认为 Off），有些鸡肋。</p>
+<h2 id="references">References:</h2>
+<ul>
+<li><a href="http://drops.wooyun.org/tips/870">http://drops.wooyun.org/tips/870</a></li>
+<li><a href="http://www.91ri.org/7469.html">http://www.91ri.org/7469.html</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

