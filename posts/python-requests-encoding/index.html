@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>Python &#43; Requests 编码问题 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.ee4a618df935f0a2b9d9e99663fcbefb3605c141a5835bb785b399615d5fac1e.css" integrity="sha256-7kphjfk18KK52emWY/y&#43;&#43;zYFwUGlg1u3hbOZYV1frB4=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>Python &#43; Requests 编码问题</h1>
+        <div>
+            <time datetime="2014-06-18 21:13:15 +0800 CST">发布时间: 2014-06-18 21:13</time>
+            <time datetime="2014-06-18 21:13:15 +0800 CST">更新时间: 2014-06-18 21:13</time>
+        </div>
+    </header>
+
+    <section>
+    <p>requests 是一款非常人性化的 python http 库，但起对网页的编码识别却一直很蛋疼，时常出现乱码。</p>
+<p>可以从官方的 API 文档中找出乱码的根本原因，http://docs.python-requests.org/en/latest/api/#requests.Response.text：</p>
+<blockquote>
+<p>class requests.Response
+The Response object, which contains a server’s response to an HTTP request.</p>
+</blockquote>
+<blockquote>
+<p>···SNIP···</p>
+</blockquote>
+<blockquote>
+<p>text
+Content of the response, in unicode.</p>
+</blockquote>
+<blockquote>
+<p>If Response.encoding is None, encoding will be guessed using chardet.</p>
+</blockquote>
+<blockquote>
+<p>The encoding of the response content is determined based solely on HTTP head
+ers, following RFC 2616 to the letter. If you can take advantage of non-HTTP
+knowledge to make a better guess at the encoding, you should set r.encoding
+appropriately before accessing this property.</p>
+</blockquote>
+<blockquote>
+<p>···SNIP···</p>
+</blockquote>
+<p>可见，requests 是通过 http header 猜测页面编码，如果 header 中不存在 charset 就认为编码为 ISO-8859-1。这样的话，对于返回头中没有指定页面编码的情况，自然就出现乱码了，如：</p>
+<pre tabindex="0"><code>&gt;&gt;&gt; import requests
+&gt;&gt;&gt; r = requests.get(&#34;http://www.wooyun.org&#34;)
+&gt;&gt;&gt; r.close()
+&gt;&gt;&gt; r.headers
+CaseInsensitiveDict({&#39;via&#39;: &#39;10.67.15.68&#39;, &#39;content-encoding&#39;: &#39;gzip&#39;, &#39;transfer
+-encoding&#39;: &#39;chunked&#39;, &#39;set-cookie&#39;: &#39;saeut=123.138.79.30.1403078425607937;
+path=/; max-age=311040000, PHPSESSID=ead28aadbfdaa8aa3cc2d7c9bf184f67; path=/;
+HttpOnly&#39;, &#39;expires&#39;: &#39;Thu, 19 Nov 1981 08:52:00 GMT&#39;, &#39;server&#39;: &#39;nginx/1.4.4&#39;,
+&#39;connection&#39;: &#39;keep-alive&#39;, &#39;pragma&#39;: &#39;no-cache&#39;, &#39;cache-control&#39;: &#39;no-store,
+no-cache, must-revalidate, post-check=0, pre-check=0&#39;, &#39;date&#39;: &#39;Wed, 18 Jun 2014
+08:00:25 GMT&#39;, &#39;x-powered-by&#39;: &#39;PHP/5.3.27&#39;, &#39;content-type&#39;: &#39;text/html&#39;})
+&gt;&gt;&gt; r.encoding
+&#39;ISO-8859-1&#39;
+&gt;&gt;&gt; print r.text
+···SNIP···
+        &lt;span class=&#34;other fright&#34;&gt;
+            &lt;a href=&#34;/impression&#34;&gt;è¡~Lä¸~Zè§~Bç~B¹&lt;/a&gt;                  //乱码了
+            Â· &lt;a href=&#34;/lawer&#34;&gt;æ³~Uå¾~Ké¡¾é~W®&lt;/a&gt;
+            Â· &lt;a href=&#34;/contactus&#34;&gt;è~A~Tç³»æ~H~Qä»¬&lt;/a&gt;
+            Â· &lt;a href=&#34;/help&#34;&gt;å¸®å~J©&lt;/a&gt;
+            Â· &lt;a href=&#34;/about&#34;&gt;å~E³äº~N&lt;/a&gt;
+        &lt;/span&gt;
+    &lt;/div&gt;
+···SNIP···
+</code></pre><p>文档中提供的解决办法：</p>
+<blockquote>
+<p>If you can take advantage of non-HTTP knowledge to make a better guess at the encoding, you should set r.encoding appropriately before accessing this property.</p>
+</blockquote>
+<p>即在访问 r.text 属性前先设置下正确的编码，如下：</p>
+<pre tabindex="0"><code>&gt;&gt;&gt; import requests
+&gt;&gt;&gt; r = requests.get(&#34;http://www.wooyun.org&#34;)
+&gt;&gt;&gt; r.close()
+&gt;&gt;&gt; r.headers
+CaseInsensitiveDict({&#39;via&#39;: &#39;10.67.15.68&#39;, &#39;content-encoding&#39;: &#39;gzip&#39;, &#39;transfer
+-encoding&#39;: &#39;chunked&#39;, &#39;set-cookie&#39;: &#39;saeut=123.138.79.30.1403078425607937; path
+=/; max-age=311040000, PHPSESSID=ead28aadbfdaa8aa3cc2d7c9bf184f67; path=/; Http
+Only&#39;, &#39;expires&#39;: &#39;Thu, 19 Nov 1981 08:52:00 GMT&#39;, &#39;server&#39;: &#39;nginx/1.4.4&#39;, &#39;con
+nection&#39;: &#39;keep-alive&#39;, &#39;pragma&#39;: &#39;no-cache&#39;, &#39;cache-control&#39;: &#39;no-store, no-cac
+he, must-revalidate, post-check=0, pre-check=0&#39;, &#39;date&#39;: &#39;Wed, 18 Jun 2014 08:00
+:25 GMT&#39;, &#39;x-powered-by&#39;: &#39;PHP/5.3.27&#39;, &#39;content-type&#39;: &#39;text/html&#39;})
+&gt;&gt;&gt; r.encoding = &#34;utf-8&#34;
+&gt;&gt;&gt; print r.text
+···SNIP···
+        &lt;span class=&#34;other fright&#34;&gt;
+            &lt;a href=&#34;/impression&#34;&gt;行业观点&lt;/a&gt;              //正常了
+            · &lt;a href=&#34;/lawer&#34;&gt;法律顾问&lt;/a&gt;
+            · &lt;a href=&#34;/contactus&#34;&gt;联系我们&lt;/a&gt;
+            · &lt;a href=&#34;/help&#34;&gt;帮助&lt;/a&gt;
+            · &lt;a href=&#34;/about&#34;&gt;关于&lt;/a&gt;
+        &lt;/span&gt;
+    &lt;/div&gt;
+···SNIP···
+</code></pre><p>requests 也可以从内容获取编码，通过 chardet 库，只是默认没有启用:</p>
+<pre tabindex="0"><code>&gt;&gt;&gt; r = requests.get(&#34;http://www.wooyun.org&#34;)
+&gt;&gt;&gt; r.close()
+&gt;&gt;&gt; r.encoding
+&#39;ISO-8859-1&#39;
+&gt;&gt;&gt; r.apparent_encoding
+&#39;utf-8&#39;
+</code></pre><p>这样一来，我们可以直接通过设置 r.encoding 为 r.apparent_encoding，来解决这个「bug」:</p>
+<pre tabindex="0"><code>&gt;&gt;&gt; r = requests.get(&#34;http://www.wooyun.org&#34;)
+&gt;&gt;&gt; r.close()
+&gt;&gt;&gt; r.encoding
+&#39;ISO-8859-1&#39;
+&gt;&gt;&gt; r.apparent_encoding
+&#39;utf-8&#39;
+&gt;&gt;&gt; r.encoding =  r.apparent_encoding
+&gt;&gt;&gt; print r.text
+···SNIP···
+        &lt;span class=&#34;other fright&#34;&gt;
+            &lt;a href=&#34;/impression&#34;&gt;行业观点&lt;/a&gt;              //正常了
+            · &lt;a href=&#34;/lawer&#34;&gt;法律顾问&lt;/a&gt;
+            · &lt;a href=&#34;/contactus&#34;&gt;联系我们&lt;/a&gt;
+            · &lt;a href=&#34;/help&#34;&gt;帮助&lt;/a&gt;
+            · &lt;a href=&#34;/about&#34;&gt;关于&lt;/a&gt;
+        &lt;/span&gt;
+    &lt;/div&gt;
+···SNIP···
+</code></pre><p>问题解决。</p>
+<p>References：</p>
+<p><a href="http://liguangming.com/python-requests-ge-encoding-from-headers">http://liguangming.com/python-requests-ge-encoding-from-headers</a></p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>
