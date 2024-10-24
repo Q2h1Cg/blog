@@ -14,7 +14,7 @@
         
 		
 		
-        <link rel="stylesheet" href="/css/main.f123edc6b34bb273981f43721cdd7eaa4f52c2545e0737dc3a02604e98ec4b11.css" integrity="sha256-8SPtxrNLsnOYH0NyHN1&#43;qk9SwlReBzfcOgJgTpjsSxE=" />
+        <link rel="stylesheet" href="/css/main.845fd2edca74b6bfad6e64d66336d257e9c6335ceaa98b7fd6b6e53343bd2220.css" integrity="sha256-hF/S7cp0tr&#43;tbmTWYzbSV&#43;nGM1zqqYt/1rblM0O9IiA=" />
         <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
     </head>
 
@@ -37,8 +37,8 @@
 </span></span><span style="display:flex;"><span>    <span style="color:#f92672">&lt;allow-access-from</span> <span style="color:#a6e22e">domain=</span><span style="color:#e6db74">&#34;*&#34;</span> <span style="color:#f92672">/&gt;</span>
 </span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;/cross-domain-policy&gt;</span>
 </span></span></code></pre></div><p>这里，allow-access-from domain 被设置成了 * ，意味着任意站点的 flash 文件都可以对 dz 站点发起 http 请求。</p>
-<p>而 discuz 后台的操作只验证了 referer头（因为 flash 可以进行 http 请求，所以对 token 的验证可以 bypass ），referer 头可以通过从 https 站点向 http 站点访问绕过。更有甚者，有一些神奇的插件，使得我们可以访问到上传到 discuz 站点的 flash 文件，直接免去了 referer 头的问题。</p>
-<p>后台的 “全局 － 站点信息 － 网站第三方统计代码” 处，可以通过 script 标签引入js，前台访问直接触发，相当于构造了一枚完美的存储型 xss。</p>
+<p>而 discuz 后台的操作只验证了 referer 头（因为 flash 可以进行 http 请求，所以对 token 的验证可以 bypass ），referer 头可以通过从 https 站点向 http 站点访问绕过。更有甚者，有一些神奇的插件，使得我们可以访问到上传到 discuz 站点的 flash 文件，直接免去了 referer 头的问题。</p>
+<p>后台的 “全局 － 站点信息 － 网站第三方统计代码” 处，可以通过 script 标签引入 js，前台访问直接触发，相当于构造了一枚完美的存储型 xss。</p>
 <p>以上 3 点，导致了 flash csrf 向存储型 xss 的转变。</p>
 <p>首先，编写用于发送请求的 flash，as3 代码如下：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">package</span>
@@ -85,7 +85,7 @@
 </span></span><span style="display:flex;"><span>
 </span></span><span style="display:flex;"><span>                <span style="color:#66d9ef">private</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">getFormHash</span>(<span style="color:#a6e22e">event</span><span style="color:#f92672">:</span><span style="color:#a6e22e">Event</span>)<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span>
 </span></span><span style="display:flex;"><span>                {
-</span></span><span style="display:flex;"><span>                        <span style="color:#75715e">//获取formhash 后回调，写js.
+</span></span><span style="display:flex;"><span>                        <span style="color:#75715e">// 获取formhash 后回调，写 js.
 </span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">loader</span><span style="color:#f92672">:</span><span style="color:#a6e22e">URLLoader</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">URLLoader</span>(<span style="color:#a6e22e">event</span>.<span style="color:#a6e22e">target</span>);
 </span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">pattern</span><span style="color:#f92672">:</span>RegExp <span style="color:#f92672">=</span> <span style="color:#e6db74">/&lt;input type=&#34;hidden&#34; name=&#34;formhash&#34; value=&#34;(\w{8})&#34; \/&gt;/</span>;
 </span></span><span style="display:flex;"><span>                        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">formhash</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">pattern</span>.<span style="color:#a6e22e">exec</span>(<span style="color:#a6e22e">loader</span>.<span style="color:#a6e22e">data</span>)[<span style="color:#ae81ff">1</span>];
@@ -117,7 +117,7 @@
 </span></span><span style="display:flex;"><span>    <span style="color:#960050;background-color:#1e0010">&lt;</span>/object/&gt;
 </span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">body</span>&gt;
 </span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
-</span></span></code></pre></div><p>然后，只要我们把这两个文件放在https服务器上，诱使目标访问即可，为了演示攻击效果，我做了个 gif 图片（图片有点大，耐心等待 :D）：</p>
+</span></span></code></pre></div><p>然后，只要我们把这两个文件放在 https 服务器上，诱使目标访问即可，为了演示攻击效果，我做了个 gif 图片（图片有点大，耐心等待 :D）：</p>
 <p><img src="discuz-flash-csrf-to-xss.gif" alt=""></p>
 
     </section>
