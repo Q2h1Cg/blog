@@ -59,6 +59,21 @@
     <loc>https://sh3ll.me/posts/geekpwn-2016-web/</loc>
     <lastmod>2017-01-17T02:21:00+08:00</lastmod>
   </url><url>
+    <loc>https://sh3ll.me/posts/hack-worm-evilsay/</loc>
+    <lastmod>2014-03-13T20:34:08+08:00</lastmod>
+  </url><url>
+    <loc>https://sh3ll.me/posts/xss-tips/</loc>
+    <lastmod>2014-03-13T20:31:41+08:00</lastmod>
+  </url><url>
+    <loc>https://sh3ll.me/posts/div-phishing/</loc>
+    <lastmod>2014-03-13T20:27:11+08:00</lastmod>
+  </url><url>
+    <loc>https://sh3ll.me/posts/innerhtml-script/</loc>
+    <lastmod>2014-03-13T20:25:27+08:00</lastmod>
+  </url><url>
+    <loc>https://sh3ll.me/posts/a-flash-xss/</loc>
+    <lastmod>2014-03-13T20:18:45+08:00</lastmod>
+  </url><url>
     <loc>https://sh3ll.me/posts/python-break-nested-loops/</loc>
     <lastmod>2014-03-13T00:54:14+08:00</lastmod>
   </url>

