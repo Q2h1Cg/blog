@@ -41,7 +41,7 @@
 <p>为了方便可直接将断点下到 <code>compile_string</code> 函数上，跟进它看下函数定义：</p>
 <p><img src="2.png" alt=""></p>
 <p>参数 <code>source_string</code> 即为动态执行的代码，类型为 <code>zval</code>，<code>zval</code> 定义如下：</p>
-<p><img src="3.png" alt=""></p>
+<p><img src="3.jpeg" alt=""></p>
 <p>所以在调试器中可以通过 <code>((*(zval *)source_string).value.str).val</code> 打印出代码。</p>
 <p>龚老板文章中还有提到 phpjiami 在解密的过程中还会校验 <code>sapi_name</code>：</p>
 <p><img src="4.png" alt=""></p>
