@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="index,follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="author" content="Chu" />
+        <meta name="description" content="Chu 的博客" />
+        <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+        <title>渗透 XXX - Chu&#39;s BLoG</title>
+
+        
+		
+		
+        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+    </head>
+
+    <body>
+        <header></header>
+        <main>
+<article>
+    <header>
+        <h1>渗透 XXX</h1>
+        <div>
+            <time datetime="2016-01-29 11:51:27 +0800 CST">发布时间: 2016-01-29 11:51</time>
+            <time datetime="2016-01-29 11:51:27 +0800 CST">更新时间: 2016-01-29 11:51</time>
+        </div>
+    </header>
+
+    <section>
+    <p>WooYun Zone 里面发现的目标，全程打码。</p>
+<h2 id="资产信息收集">资产信息收集</h2>
+<p>拿到手的只有一个域名，首先对域名进行信息收集：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>➜  ees  whois xx.oo
+</span></span><span style="display:flex;"><span>Domain Name: xx.oo
+</span></span><span style="display:flex;"><span>ROID: 20021209s10041s00003662-cn
+</span></span><span style="display:flex;"><span>Domain Status: clientDeleteProhibited
+</span></span><span style="display:flex;"><span>Domain Status: clientUpdateProhibited
+</span></span><span style="display:flex;"><span>Domain Status: clientTransferProhibited
+</span></span><span style="display:flex;"><span>Registrant ID: s1277366285174
+</span></span><span style="display:flex;"><span>Registrant: 上海xxoo有限责任公司
+</span></span><span style="display:flex;"><span>Registrant Contact Email: cs@onlinebusiness.com.cn
+</span></span><span style="display:flex;"><span>Sponsoring Registrar: 北京中科三方网络技术有限公司
+</span></span><span style="display:flex;"><span>Name Server: f1g1ns1.dnspod.net
+</span></span><span style="display:flex;"><span>Name Server: f1g1ns2.dnspod.net
+</span></span><span style="display:flex;"><span>Registration Time: 2001-07-26 00:00:00
+</span></span><span style="display:flex;"><span>Expiration Time: 2022-07-26 00:00:00
+</span></span><span style="display:flex;"><span>DNSSEC: unsigned
+</span></span><span style="display:flex;"><span>➜  ees  dig www.xx.oo
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>; &lt;&lt;&gt;&gt; DiG 9.9.5-11ubuntu1.2-Ubuntu &lt;&lt;&gt;&gt; www.xx.oo
+</span></span><span style="display:flex;"><span>;; global options: +cmd
+</span></span><span style="display:flex;"><span>;; Got answer:
+</span></span><span style="display:flex;"><span>;; -&gt;&gt;HEADER<span style="color:#e6db74">&lt;&lt;- opco</span>de: QUERY, status: NOERROR, id: <span style="color:#ae81ff">61111</span>
+</span></span><span style="display:flex;"><span>;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>;; OPT PSEUDOSECTION:
+</span></span><span style="display:flex;"><span>; EDNS: version: 0, flags:; udp: <span style="color:#ae81ff">4096</span>
+</span></span><span style="display:flex;"><span>;; QUESTION SECTION:
+</span></span><span style="display:flex;"><span>;www.xx.oo.                 IN      A
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>;; ANSWER SECTION:
+</span></span><span style="display:flex;"><span>www.xx.oo.          <span style="color:#ae81ff">900</span>     IN      A       1.2.3.4
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>;; Query time: <span style="color:#ae81ff">43</span> msec
+</span></span><span style="display:flex;"><span>;; SERVER: 127.0.1.1#53<span style="color:#f92672">(</span>127.0.1.1<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>;; WHEN: Thu Jan <span style="color:#ae81ff">28</span> 17:01:28 CST <span style="color:#ae81ff">2016</span>
+</span></span><span style="display:flex;"><span>;; MSG SIZE  rcvd: <span style="color:#ae81ff">58</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>➜  ees  curl cip.cc/1.2.3.4
+</span></span><span style="display:flex;"><span>IP      : 1.2.3.4
+</span></span><span style="display:flex;"><span>地址    : 中国  上海市
+</span></span><span style="display:flex;"><span>运营商  : 联通
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>数据二  : 上海市 | 联通
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>URL     : http://www.cip.cc/1.2.3.4
+</span></span><span style="display:flex;"><span>➜  dnsenum  ./dnsenum.pl xx.oo
+</span></span><span style="display:flex;"><span>Smartmatch is experimental at ./dnsenum.pl line 698.
+</span></span><span style="display:flex;"><span>Smartmatch is experimental at ./dnsenum.pl line 698.
+</span></span><span style="display:flex;"><span>dnsenum.pl VERSION:1.2.4
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>-----   xx.oo   -----
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Host<span style="color:#960050;background-color:#1e0010">&#39;</span>s addresses:
+</span></span><span style="display:flex;"><span>__________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>xx.oo.                               <span style="color:#ae81ff">900</span>      IN    A        1.2.3.4
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Name Servers:
+</span></span><span style="display:flex;"><span>______________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">2307</span>     IN    A        182.140.167.166
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">2307</span>     IN    A        125.39.208.193
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">2307</span>     IN    A        180.153.9.189
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">2307</span>     IN    A        111.30.132.180
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">2307</span>     IN    A        113.108.80.138
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">2308</span>     IN    A        112.90.82.194
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">2308</span>     IN    A        101.226.30.224
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">2308</span>     IN    A        115.236.151.191
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">2308</span>     IN    A        182.140.167.188
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">2308</span>     IN    A        115.236.137.40
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Mail <span style="color:#f92672">(</span>MX<span style="color:#f92672">)</span> Servers:
+</span></span><span style="display:flex;"><span>___________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>mail2.xx.oo.                         <span style="color:#ae81ff">900</span>      IN    A        1.2.3.5
+</span></span><span style="display:flex;"><span>mail.xx.oo.                          <span style="color:#ae81ff">900</span>      IN    A        1.2.3.6
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Trying Zone Transfers and getting Bind Versions:
+</span></span><span style="display:flex;"><span>_________________________________________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>^C
+</span></span></code></pre></div><p>可以看到是存在 Mail Server 的，所以继续的思路如下：</p>
+<ul>
+<li>收集子域名、IP 信息，整理后由 Web/其他漏洞 突破边界</li>
+<li>爆破员工邮箱</li>
+</ul>
+<p>收集子域名及邮箱信息：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>➜  ees  curl <span style="color:#e6db74">&#34;http://api.hackertarget.com/hostsearch/?q=xx.oo&#34;</span> -o api.hackertarget.com.txt
+</span></span><span style="display:flex;"><span>  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+</span></span><span style="display:flex;"><span>                                 Dload  Upload   Total   Spent    Left  Speed
+</span></span><span style="display:flex;"><span><span style="color:#ae81ff">100</span>    <span style="color:#ae81ff">55</span>    <span style="color:#ae81ff">0</span>    <span style="color:#ae81ff">55</span>    <span style="color:#ae81ff">0</span>     <span style="color:#ae81ff">0</span>     <span style="color:#ae81ff">12</span>      <span style="color:#ae81ff">0</span> --:--:--  0:00:04 --:--:--    <span style="color:#ae81ff">12</span>
+</span></span><span style="display:flex;"><span>➜  ees  cat api.hackertarget.com.txt
+</span></span><span style="display:flex;"><span>xx.oo,11.246.81.26
+</span></span><span style="display:flex;"><span>mail2.xx.oo,1.2.3.6
+</span></span><span style="display:flex;"><span>➜  theHarvester git:<span style="color:#f92672">(</span>master<span style="color:#f92672">)</span> proxychains python theHarvester.py -d xx.oo -b all -l <span style="color:#ae81ff">500</span> -f ~/ees/theharvester.html
+</span></span><span style="display:flex;"><span>ProxyChains-3.1 <span style="color:#f92672">(</span>http://proxychains.sf.net<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>*******************************************************************
+</span></span><span style="display:flex;"><span>*                                                                 *
+</span></span><span style="display:flex;"><span>* | |_| |__   ___    /<span style="color:#ae81ff">\ </span> /__ _ _ ____   _____  ___| |_ ___ _ __  *
+</span></span><span style="display:flex;"><span>* | __| <span style="color:#e6db74">&#39;_ \ / _ \  / /_/ / _` | &#39;</span>__<span style="color:#ae81ff">\ \ </span>/ / _ <span style="color:#ae81ff">\/</span> __| __/ _ <span style="color:#ae81ff">\ </span><span style="color:#e6db74">&#39;__| *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">* | |_| | | |  __/ / __  / (_| | |   \ V /  __/__ \ ||  __/ |    *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">*  __|_| |_|___| \/ /_/ __,_|_|    _/ ___||___/_____|_|    *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">*                                                                 *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">* TheHarvester Ver. 2.6                                           *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">* Coded by Christian Martorella                                   *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">* Edge-Security Research                                          *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">* cmartorella@edge-security.com                                   *
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">*******************************************************************
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Full harvest..
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[-] Searching in Google..
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-request| www.google.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|S-chain|-&lt;&gt;-127.0.0.1:1080-&lt;&gt;&lt;&gt;-4.2.2.2:53-&lt;&gt;&lt;&gt;-OK
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-response| www.google.com is 216.11.216.132
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|S-chain|-&lt;&gt;-127.0.0.1:1080-&lt;&gt;&lt;&gt;-216.11.216.132:80-&lt;&gt;&lt;&gt;-OK
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        Searching 0 results...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">... snip ...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-response| www.exalead.com is 178.255.215.34
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|S-chain|-&lt;&gt;-127.0.0.1:1080-&lt;&gt;&lt;&gt;-178.255.215.34:80-&lt;&gt;&lt;&gt;-OK
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        Searching 550 results...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[+] Emails found:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">------------------
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">jane@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">jenny.sz@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">liulijun@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ees@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">charles@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">emily.sz@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">zhuting@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">wangli@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ees@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">gracewu@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">unique.sz@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[+] Hosts found in search engines:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">------------------------------------
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[-] Resolving hostnames IPs...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-request| www.xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|S-chain|-&lt;&gt;-127.0.0.1:1080-&lt;&gt;&lt;&gt;-4.2.2.2:53-&lt;&gt;&lt;&gt;-OK
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-response| www.xx.oo is 11.246.81.26
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-request| www.xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|S-chain|-&lt;&gt;-127.0.0.1:1080-&lt;&gt;&lt;&gt;-4.2.2.2:53-&lt;&gt;&lt;&gt;-OK
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-response| www.xx.oo is 11.246.81.26
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">11.246.81.26:www.xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">11.246.81.26:www.xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[+] Virtual hosts:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">==================
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|DNS-request| www.bing.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|S-chain|-&lt;&gt;-127.0.0.1:1080-&lt;&gt;&lt;&gt;-4.2.2.2:53-&lt;&gt;&lt;&gt;-OK
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">... snip ...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">|S-chain|-&lt;&gt;-127.0.0.1:1080-&lt;&gt;&lt;&gt;-204.79.197.200:80-&lt;&gt;&lt;&gt;-OK
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">11.246.81.26    www.xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[+] Saving files...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Files saved!
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  google-chrome theharvester.html &amp;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[1] 5934
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  已在现有的浏览器会话中创建新的窗口。
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">[1]  + 5934 done       google-chrome theharvester.html
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  dnsenum  ./dnsenum.pl --enum --noreverse --threads 10 -f wydomain_default.csv -r -o ~/ees/dnsenum.xml xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Smartmatch is experimental at ./dnsenum.pl line 698.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Smartmatch is experimental at ./dnsenum.pl line 698.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">dnsenum.pl VERSION:1.2.4
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Warning: can&#39;</span>t load Net::Whois::IP module, whois queries disabled.
+</span></span><span style="display:flex;"><span>Warning: can<span style="color:#e6db74">&#39;t load WWW::Mechanize module, Google scraping desabled.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-----   xx.oo   -----
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Host&#39;</span>s addresses:
+</span></span><span style="display:flex;"><span>__________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>xx.oo.                               <span style="color:#ae81ff">900</span>      IN    A        11.246.81.26
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Name Servers:
+</span></span><span style="display:flex;"><span>______________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">1106</span>     IN    A        125.39.208.193
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">1106</span>     IN    A        182.140.167.166
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">1106</span>     IN    A        180.153.9.189
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">1106</span>     IN    A        111.30.132.180
+</span></span><span style="display:flex;"><span>f1g1ns1.dnspod.net.                      <span style="color:#ae81ff">1106</span>     IN    A        113.108.80.138
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">1107</span>     IN    A        101.226.30.224
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">1107</span>     IN    A        112.90.82.194
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">1107</span>     IN    A        115.236.137.40
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">1107</span>     IN    A        182.140.167.188
+</span></span><span style="display:flex;"><span>f1g1ns2.dnspod.net.                      <span style="color:#ae81ff">1107</span>     IN    A        115.236.151.191
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Mail <span style="color:#f92672">(</span>MX<span style="color:#f92672">)</span> Servers:
+</span></span><span style="display:flex;"><span>___________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>mail2.xx.oo.                         <span style="color:#ae81ff">900</span>      IN    A        1.2.3.6
+</span></span><span style="display:flex;"><span>mail.xx.oo.                          <span style="color:#ae81ff">900</span>      IN    A        11.246.81.29
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Trying Zone Transfers and getting Bind Versions:
+</span></span><span style="display:flex;"><span>_________________________________________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ERROR: tcp recv failed:
+</span></span><span style="display:flex;"><span>ERROR: tcp recv failed:
+</span></span><span style="display:flex;"><span>Thread <span style="color:#ae81ff">6</span> terminated abnormally: improperly terminated AXFR at ./dnsenum.pl line <span style="color:#ae81ff">843</span> thread 6.
+</span></span><span style="display:flex;"><span>Thread <span style="color:#ae81ff">5</span> terminated abnormally: improperly terminated AXFR at ./dnsenum.pl line <span style="color:#ae81ff">843</span> thread 5.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Brute forcing with wydomain_default.csv:
+</span></span><span style="display:flex;"><span>_________________________________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>mail.xx.oo.                          <span style="color:#ae81ff">880</span>      IN    A        11.246.81.29
+</span></span><span style="display:flex;"><span>www.xx.oo.                           <span style="color:#ae81ff">900</span>      IN    A        11.246.81.26
+</span></span><span style="display:flex;"><span>mail2.xx.oo.                         <span style="color:#ae81ff">879</span>      IN    A        1.2.3.6
+</span></span><span style="display:flex;"><span>mail3.xx.oo.                         <span style="color:#ae81ff">900</span>      IN    A        11.246.81.29
+</span></span><span style="display:flex;"><span>query.xx.oo.                         <span style="color:#ae81ff">900</span>      IN    A        11.246.81.28
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Performing recursion:
+</span></span><span style="display:flex;"><span>______________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span> ---- Checking subdomains NS records ----
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>  Can<span style="color:#e6db74">&#39;t perform recursion no NS records.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">xx.oo class C netranges:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">_____________________________
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"> 11.246.81.0/24
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"> 116.236.199.0/24
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">xx.oo ip blocks:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">_____________________
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"> 11.246.81.26/32
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"> 11.246.81.28/31
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"> 1.2.3.6/32
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">done.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  SimplyEmail git:(master) ✗ proxychains python SimplyEmail.py -all -e xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">...snip...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74"> [*] Email reconnaissance has been completed:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   File Location:               /home/chu/Pentest/SimplyEmail
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   Unique Emails Found:         10
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   Raw Email File:              Email_List.txt
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   HTML Email File:             Email_List.html
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">   Domain Performed:            xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  ~/Pentest/scripts/ip2domain.py 11.246.81.26
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">http://www.xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  ~/Pentest/scripts/ip2domain.py 1.2.3.4
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">http://www.ees-express.sh.cn
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">http://ees-express.sh.cn
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  ~/Pentest/scripts/ip2domain.py 11.246.81.28
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">http://query.xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  ~/Pentest/scripts/ip2domain.py 11.246.81.29
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  ~/Pentest/scripts/ip2domain.py 1.2.3.6
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  ees  whois ees-express.sh.cn
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Domain Name: ees-express.sh.cn
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">ROID: 20131107s10041s64777491-cn
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Domain Status: ok
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Registrant ID: mcen10776104-dom
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Registrant: 上海百福东方国际物流有限责任公司
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Registrant Contact Email: its@xx.oo
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Sponsoring Registrar: 上海美橙科技信息发展有限公司
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Name Server: ns1.ezdnscenter.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Name Server: ns2.ezdnscenter.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Name Server: ns3.ezdnscenter.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Name Server: ns4.ezdnscenter.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Name Server: ns5.ezdnscenter.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Name Server: ns6.ezdnscenter.com
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Registration Time: 2013-11-07 09:33:32
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Expiration Time: 2018-11-07 09:33:32
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">DNSSEC: unsigned
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">➜  dnsenum  ./dnsenum.pl --enum --noreverse --threads 10 -f wydomain_default.csv -r -o ~/ees/ees-express.sh.cn.dnsenum.txt ees-express.sh.cn
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Smartmatch is experimental at ./dnsenum.pl line 698.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Smartmatch is experimental at ./dnsenum.pl line 698.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">dnsenum.pl VERSION:1.2.4
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Warning: can&#39;</span>t load Net::Whois::IP module, whois queries disabled.
+</span></span><span style="display:flex;"><span>Warning: can<span style="color:#e6db74">&#39;t load WWW::Mechanize module, Google scraping desabled.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-----   ees-express.sh.cn   -----
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Host&#39;</span>s addresses:
+</span></span><span style="display:flex;"><span>__________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ees-express.sh.cn.                       <span style="color:#ae81ff">28684</span>    IN    A        1.2.3.4
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Wildcard detection using: spyxnvpaskue
+</span></span><span style="display:flex;"><span>_______________________________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>spyxnvpaskue.ees-express.sh.cn.          <span style="color:#ae81ff">0</span>        IN    A        60.19.29.21
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span> Wildcards detected, all subdomains will point to the same IP address
+</span></span><span style="display:flex;"><span> Omitting results containing 60.19.29.21.
+</span></span><span style="display:flex;"><span> Maybe you are using OpenDNS servers.
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Name Servers:
+</span></span><span style="display:flex;"><span>______________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ns4.ezdnscenter.com.                     <span style="color:#ae81ff">667</span>      IN    A        120.52.19.210
+</span></span><span style="display:flex;"><span>ns4.ezdnscenter.com.                     <span style="color:#ae81ff">667</span>      IN    A        11.216.26.219
+</span></span><span style="display:flex;"><span>ns3.ezdnscenter.com.                     <span style="color:#ae81ff">694</span>      IN    A        120.52.19.210
+</span></span><span style="display:flex;"><span>ns3.ezdnscenter.com.                     <span style="color:#ae81ff">694</span>      IN    A        11.216.26.219
+</span></span><span style="display:flex;"><span>ns2.ezdnscenter.com.                     <span style="color:#ae81ff">488</span>      IN    A        11.216.26.219
+</span></span><span style="display:flex;"><span>ns2.ezdnscenter.com.                     <span style="color:#ae81ff">488</span>      IN    A        120.52.19.210
+</span></span><span style="display:flex;"><span>ns6.ezdnscenter.com.                     <span style="color:#ae81ff">620</span>      IN    A        120.52.19.210
+</span></span><span style="display:flex;"><span>ns6.ezdnscenter.com.                     <span style="color:#ae81ff">620</span>      IN    A        11.216.26.219
+</span></span><span style="display:flex;"><span>ns1.ezdnscenter.com.                     <span style="color:#ae81ff">504</span>      IN    A        120.52.19.210
+</span></span><span style="display:flex;"><span>ns1.ezdnscenter.com.                     <span style="color:#ae81ff">504</span>      IN    A        11.216.26.219
+</span></span><span style="display:flex;"><span>ns5.ezdnscenter.com.                     <span style="color:#ae81ff">137042</span>   IN    A        101.226.167.172
+</span></span><span style="display:flex;"><span>ns5.ezdnscenter.com.                     <span style="color:#ae81ff">137042</span>   IN    A        11.216.26.219
+</span></span><span style="display:flex;"><span>ns5.ezdnscenter.com.                     <span style="color:#ae81ff">137042</span>   IN    A        120.52.19.210
+</span></span><span style="display:flex;"><span>ns5.ezdnscenter.com.                     <span style="color:#ae81ff">137042</span>   IN    A        180.153.235.235
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Mail <span style="color:#f92672">(</span>MX<span style="color:#f92672">)</span> Servers:
+</span></span><span style="display:flex;"><span>___________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Trying Zone Transfers and getting Bind Versions:
+</span></span><span style="display:flex;"><span>_________________________________________________
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>^C
+</span></span></code></pre></div><p>一番努力后成功收集到一些子域名、IP 段及邮箱信息。整理IP 段为 ipList.txt，对其做 nmap 扫描：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>➜  ees  sudo nmap -T4 -A -Pn -n --open -v -iL ipList.txt -oN nmap.txt
+</span></span></code></pre></div><p>结果太长了，不贴了，扫描出一些 HTTP(s)、PPTP。对开放了 HTTP 服务的 IP 做域名反差，结合前面收集的域名，整理出一份 http.txt。抓取所有 HTTP 的 banner：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>➜  WhatWeb git:<span style="color:#f92672">(</span>master<span style="color:#f92672">)</span> ./whatweb -v --no-errors -i ~/ees/http.txt --log-verbose ~/ees/whatweb.txt
+</span></span><span style="display:flex;"><span>... snip ...
+</span></span><span style="display:flex;"><span>http://1.2.3.4/index.php/zh/ <span style="color:#f92672">[</span>200<span style="color:#f92672">]</span> Apache<span style="color:#f92672">[</span>2.4.10<span style="color:#f92672">]</span>, Cookies<span style="color:#f92672">[</span>08df4e0509a4d4d0ea77bf5bdf8eeb67,1f7b7cefd2db98102889d031f83522f5<span style="color:#f92672">]</span>, Country<span style="color:#f92672">[</span>CHINA<span style="color:#f92672">][</span>CN<span style="color:#f92672">]</span>, HTML5, HTTPServer<span style="color:#f92672">[</span>Windows <span style="color:#f92672">(</span><span style="color:#ae81ff">32</span> bit<span style="color:#f92672">)][</span>Apache/2.4.10 <span style="color:#f92672">(</span>Win32<span style="color:#f92672">)</span> OpenSSL/1.0.1i PHP/5.5.19<span style="color:#f92672">]</span>, HttpOnly<span style="color:#f92672">[</span>1f7b7cefd2db98102889d031f83522f5<span style="color:#f92672">]</span>, IP<span style="color:#f92672">[</span>1.2.3.4<span style="color:#f92672">]</span>, JQuery, maybe Joomla, MetaGenerator<span style="color:#f92672">[</span>Joomla! - Open Source Content Management<span style="color:#f92672">]</span>, Modernizr, OpenSSL<span style="color:#f92672">[</span>1.0.1i<span style="color:#f92672">]</span>, OpenSearch<span style="color:#f92672">[</span>http://1.2.3.4/index.php/zh/component/search/?Itemid<span style="color:#f92672">=</span>642&amp;amp;format<span style="color:#f92672">=</span>opensearch<span style="color:#f92672">]</span>, PHP<span style="color:#f92672">[</span>5.5.19<span style="color:#f92672">]</span>, PasswordField<span style="color:#f92672">[</span>password<span style="color:#f92672">]</span>, Script<span style="color:#f92672">[</span>text/javascript<span style="color:#f92672">]</span>, Title<span style="color:#f92672">[</span>上海xxoo有限责任公司<span style="color:#f92672">]</span>, X-Powered-By<span style="color:#f92672">[</span>PHP/5.5.19<span style="color:#f92672">]</span>
+</span></span></code></pre></div><p>识别出主站 CMS 为 Joomla。</p>
+<h2 id="漏洞利用突破边界">漏洞利用、突破边界</h2>
+<p>joomla 前一段出过个 RCE，当时和糖果师傅还一起测试了，搜索漏洞库：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>➜  exploit-database git:<span style="color:#f92672">(</span>master<span style="color:#f92672">)</span> ./searchsploit joomla
+</span></span><span style="display:flex;"><span>...snip...
+</span></span><span style="display:flex;"><span>Joomla 1.5 - 3.4.5 - Object Injection Remote Command Execution                                                                                                                                     | ./php/webapps/38977.py
+</span></span><span style="display:flex;"><span>Joomla! Almond Classifieds Component Arbitrary File Upload Vulnerability                                                                                                                           | ./php/webapps/39016.txt
+</span></span><span style="display:flex;"><span>Joomla! Sexy Polling Extension <span style="color:#e6db74">&#39;answer_id&#39;</span> Parameter SQL Injection Vulnerability                                                                                                                   | ./php/webapps/39028.txt
+</span></span><span style="display:flex;"><span>Joomla 1.5 - 3.4.5 - Object Injection RCE X-Forwarded-For Header                                                                                                                                   | ./php/webapps/39033.py
+</span></span><span style="display:flex;"><span>Joomla! Projoom NovaSFH Plugin <span style="color:#e6db74">&#39;upload.php&#39;</span> Arbitrary File Upload Vulnerability                                                                                                                    | ./php/webapps/39088.txt
+</span></span><span style="display:flex;"><span>Joomla! Inneradmission Component <span style="color:#e6db74">&#39;index.php&#39;</span> SQL Injection Vulnerability                                                                                                                           | ./php/webapps/39140.txt
+</span></span><span style="display:flex;"><span>Joomla! Spider Video Player Extension <span style="color:#e6db74">&#39;theme&#39;</span> Parameter SQL Injection Vulnerability                                                                                                                | ./php/webapps/39294.txt
+</span></span><span style="display:flex;"><span>--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ------------------------------
+</span></span></code></pre></div><p>成功通过公开的 EXP 拿下网站权限，ipconfig 发现是内网：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>meterpreter &gt; ifconfig
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Interface  1
+</span></span><span style="display:flex;"><span><span style="color:#f92672">============</span>
+</span></span><span style="display:flex;"><span>Name         : Software Loopback Interface <span style="color:#ae81ff">1</span>
+</span></span><span style="display:flex;"><span>Hardware MAC : 00:00:00:00:00:00
+</span></span><span style="display:flex;"><span>MTU          : <span style="color:#ae81ff">4294967295</span>
+</span></span><span style="display:flex;"><span>IPv4 Address : 127.0.0.1
+</span></span><span style="display:flex;"><span>IPv4 Netmask : 255.0.0.0
+</span></span><span style="display:flex;"><span>IPv6 Address : ::1
+</span></span><span style="display:flex;"><span>IPv6 Netmask : ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Interface 11
+</span></span><span style="display:flex;"><span><span style="color:#f92672">============</span>
+</span></span><span style="display:flex;"><span>Name         : Microsoft Z��b:g;<span style="color:#e6db74">`</span>�~Q�~�M�hV
+</span></span><span style="display:flex;"><span>Hardware MAC : 00:15:5d:00:02:01
+</span></span><span style="display:flex;"><span>MTU          : <span style="color:#ae81ff">1500</span>
+</span></span><span style="display:flex;"><span>IPv4 Address : 192.168.0.10
+</span></span><span style="display:flex;"><span>IPv4 Netmask : 255.255.255.0
+</span></span><span style="display:flex;"><span>IPv6 Address : fe80::98f7:e8a:3eeb:ff6
+</span></span><span style="display:flex;"><span>IPv6 Netmask : ffff:ffff:ffff:ffff::
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Interface 12
+</span></span><span style="display:flex;"><span><span style="color:#f92672">============</span>
+</span></span><span style="display:flex;"><span>Name         : Microsoft ISATAP Adapter
+</span></span><span style="display:flex;"><span>Hardware MAC : 00:00:00:00:00:00
+</span></span><span style="display:flex;"><span>MTU          : <span style="color:#ae81ff">1280</span>
+</span></span><span style="display:flex;"><span>IPv6 Address : fe80::5efe:c0a8:a
+</span></span><span style="display:flex;"><span>IPv6 Netmask : ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Interface 18
+</span></span><span style="display:flex;"><span><span style="color:#f92672">============</span>
+</span></span><span style="display:flex;"><span>Name         : Microsoft Teredo Tunneling Adapter
+</span></span><span style="display:flex;"><span>Hardware MAC : 00:00:00:00:00:00
+</span></span><span style="display:flex;"><span>MTU          : <span style="color:#ae81ff">1280</span>
+</span></span><span style="display:flex;"><span>IPv6 Address : 2001:0:7834:496d:18cf:134e:3f57:fff5
+</span></span><span style="display:flex;"><span>IPv6 Netmask : ffff:ffff:ffff:ffff::
+</span></span><span style="display:flex;"><span>IPv6 Address : fe80::18cf:134e:3f57:fff5
+</span></span><span style="display:flex;"><span>IPv6 Netmask : ffff:ffff:ffff:ffff::
+</span></span></code></pre></div><h2 id="后渗透">后渗透</h2>
+<p>拿到的 webshell 为 system 权限，省去了提权。首先收集当前机器（web server）信息，常见的包括：</p>
+<ul>
+<li>软件列表</li>
+<li>浏览器</li>
+<li>文件：桌面快捷方式、最近打开的文件、共享、搜索记录、回收站</li>
+<li>rdp 记录及配置文件</li>
+<li>当前启动的程序</li>
+</ul>
+<p>给 Web Server 挂上 meterpreter，通过 msf 的后渗透模块进行信息收集。</p>
+<p>首先发现 C 盘根目录下有 zabbix 目录，在其中找到了 zabbix 的配置文件，获取 server 地址，访问发现是 admin/zabbix 若口令。net view /domain 发现存在域环境。</p>
+<p>现在的思路就很明确了，有两种方式：</p>
+<ul>
+<li>通过 zabbix 执行命令可以控制大多数计算机</li>
+<li>域渗透</li>
+</ul>
+<p>因为对域的经验比较少，正好学习一下，所以我没有通过 zabbix 去做，而是采用了典型的域渗透。</p>
+<p>主要流程如下：</p>
+<ol>
+<li>dump hash</li>
+<li>通过 hash 传递控制了多台域内计算机，其中一台开放文件共享服务，管理员曾经登录过。</li>
+<li>抓取到管理员的密码，成功登录域控服务器，目标规模较小，域内共 430+ 计算机</li>
+</ol>
+
+    </section>
+</article>
+</main>
+    </body>
+</html>

