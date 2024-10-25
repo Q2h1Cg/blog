@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="index,follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="author" content="Chu" />
+        <meta name="description" content="Chu 的博客" />
+        <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+        <title>Python 实现事件监听 - Chu&#39;s BLoG</title>
+
+        
+		
+		
+        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+    </head>
+
+    <body>
+        <header></header>
+        <main>
+<article>
+    <header>
+        <h1>Python 实现事件监听</h1>
+        <div>
+            <time datetime="2015-03-22 15:08:47 +0800 CST">发布时间: 2015-03-22 15:08</time>
+            <time datetime="2015-03-22 15:08:47 +0800 CST">更新时间: 2015-03-22 15:08</time>
+        </div>
+    </header>
+
+    <section>
+    <h2 id="缘起">缘起</h2>
+<p>最近的项目需要用到事件监听机制，Google 了下，Python 似乎没有专门用于这方面的包。参考大牛发的 Snippet 写了个事件监听类，方便以后调用。</p>
+<h2 id="事件类">事件类</h2>
+<p>首先需要有自己的事件类，定义如下两个 Demo：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Event1</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Event 1
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    value <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;this is a event, &lt;Event 1&gt;&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">Event2</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    Event 2
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    value <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;this is a event, &lt;Event 2&gt;&#34;</span>
+</span></span></code></pre></div><h2 id="事件管理分发">事件管理、分发</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e">#!/usr/bin/env python3</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># -*- coding:utf-8 -*-</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">Event Manager，负责任务的分发
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">&#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> queue <span style="color:#f92672">import</span> Queue, Empty
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> multiprocessing.dummy <span style="color:#f92672">import</span> Pool
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">class</span> <span style="color:#a6e22e">EventManager</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    事件分发
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> __init__(self):
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        初始化
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>__event_handler <span style="color:#f92672">=</span> {}
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>__pool <span style="color:#f92672">=</span> Pool(<span style="color:#ae81ff">5</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_event_handler</span>(self, event_type, handler):
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        注册 event handler
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :param event_type: 事件类型
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :type event_type: object
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :param handler: Event Handler
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :type handler: function
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>        self<span style="color:#f92672">.</span>__event_handler<span style="color:#f92672">.</span>setdefault(event_type, [])<span style="color:#f92672">.</span>append(handler)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">dispatch_event</span>(self, event):
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        分发事件
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :param event: 事件
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :type event: Event
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :return: 是否分发成功
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :rtype: bool
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">try</span>:
+</span></span><span style="display:flex;"><span>            handlers <span style="color:#f92672">=</span> self<span style="color:#f92672">.</span>__event_handler<span style="color:#f92672">.</span>get(event<span style="color:#f92672">.</span>__class__, [])
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">for</span> handler <span style="color:#f92672">in</span> handlers:
+</span></span><span style="display:flex;"><span>                self<span style="color:#f92672">.</span>__pool<span style="color:#f92672">.</span>apply_async(
+</span></span><span style="display:flex;"><span>                    func<span style="color:#f92672">=</span>handler,
+</span></span><span style="display:flex;"><span>                    args<span style="color:#f92672">=</span>(event,),
+</span></span><span style="display:flex;"><span>                    callback<span style="color:#f92672">=</span>self<span style="color:#f92672">.</span>__handler_callback
+</span></span><span style="display:flex;"><span>                )
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">True</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">except</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">False</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">def</span> <span style="color:#a6e22e">__handler_callback</span>(self, result):
+</span></span><span style="display:flex;"><span>        <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        进程回调
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :param result: 返回值
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        :type result: str
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">        &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>        print(result)
+</span></span></code></pre></div><p>由上而下，类中共有 4 个方法。</p>
+<h3 id="__init__"><strong>init</strong></h3>
+<p><code>self.__event_handler</code>： 用于注册 handler
+<code>self.__pool</code>： 以线程池的形式进行任务调度</p>
+<h3 id="add_event_handler">add_event_handler</h3>
+<p>注册 event-handler，将 handler 保存至 <code>self.__event_handler</code> 中，以供后期分发事件。</p>
+<h3 id="dispatch_event">dispatch_event</h3>
+<p>分发事件，做法是根据事件类型（<code>event.__class__</code>）从 <code>self.__event_handler</code> 中获取其 <code>handler</code>，依次将 <code>handler(event)</code> 添加至线程池中，<code>callback</code> 用于处理 <code>handler</code> 的返回结果，如不需要可以自行去掉。</p>
+<h3 id="__handler_callback">__handler_callback</h3>
+<p>用于处理 <code>handler</code> 的返回结果，如不需要可以自行去掉。</p>
+<h2 id="测试">测试</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">handler1</span>(event):
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    处理 Event1 的 handler
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;I&#39;m handler1, monitored an event. Its value: </span><span style="color:#e6db74">{value}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(value<span style="color:#f92672">=</span>event<span style="color:#f92672">.</span>value)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">handler2</span>(event):
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;&#34;&#34;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    处理 Event2 的 handler
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">    &#34;&#34;&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#e6db74">&#34;I&#39;m handler2, monitored an event. Its value: </span><span style="color:#e6db74">{value}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(value<span style="color:#f92672">=</span>event<span style="color:#f92672">.</span>value)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 实例化 EventManager</span>
+</span></span><span style="display:flex;"><span>em <span style="color:#f92672">=</span> EventManager()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 注册 handler</span>
+</span></span><span style="display:flex;"><span>em<span style="color:#f92672">.</span>add_event_handler(Event1, handler1)
+</span></span><span style="display:flex;"><span>em<span style="color:#f92672">.</span>add_event_handler(Event2, handler2)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 分发事件</span>
+</span></span><span style="display:flex;"><span>e1 <span style="color:#f92672">=</span> Event1()
+</span></span><span style="display:flex;"><span>e2 <span style="color:#f92672">=</span> Event2()
+</span></span><span style="display:flex;"><span>em<span style="color:#f92672">.</span>dispatch_event(e1)
+</span></span><span style="display:flex;"><span>em<span style="color:#f92672">.</span>dispatch_event(e2)
+</span></span></code></pre></div><p><img src="python-event-handler.png" alt=""></p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="http://en.sharejs.com/python/11925">Simple event dispatcher (Python recipe)</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+    </body>
+</html>
