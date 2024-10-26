@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="index,follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="author" content="Chu" />
+        <meta name="description" content="Chu 的博客" />
+        <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+        <title>Learn Node.js - Chu&#39;s BLoG</title>
+
+        
+		
+		
+        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+    </head>
+
+    <body>
+        <header></header>
+        <main>
+<article>
+    <header>
+        <h1>Learn Node.js</h1>
+        <div>
+            <time datetime="2016-04-06 21:12:34 +0800 CST">发布时间: 2016-04-06 21:12</time>
+            <time datetime="2016-04-06 21:12:34 +0800 CST">更新时间: 2016-04-06 21:12</time>
+        </div>
+    </header>
+
+    <section>
+    <p>这两天过了下《深入浅出Node.js》，记录下自己的理解。</p>
+<h2 id="portscan">PortScan</h2>
+<p>每次看一门语言都会去写个端口扫描器，其中可以学的到很多：模块编写/导入、网络 IO、并发控制、文件读写、命令行交互…</p>
+<p>Node.js 版本的在：https://gist.github.com/chuhades/bceb5a9d27ac7056081ea90639855cf6</p>
+<h2 id="nodejs-的优劣">Node.js 的优劣</h2>
+<h3 id="优点">优点</h3>
+<ul>
+<li>事件驱动</li>
+<li>原生异步</li>
+<li>分布式</li>
+<li>生态圈繁荣</li>
+</ul>
+<p>因为这些优点，可以说 Node.js 就是为网络而生。借助 <code>events.EventEmitter</code> 可以很简单的实现事件驱动，用来做扫描器效果应该很好；）</p>
+<p>npm 的存在使 Node.js 的生态圈极其繁荣，各种 package 都很齐全，开发者只需要 require; require ~</p>
+<h3 id="缺点">缺点</h3>
+<p>异步也带来了相应的缺点：callback hell。不过可以通过 <code>Promise/Deferred</code> 模式解决，PortScan 中我使用了 q 来做 Promise。</p>
+<p>所以 Node.js 的典型应用场景：I/O 密集型；分布式应用。</p>
+<p>至于计算任务可以通过 C++ 编写 module 解决。</p>
+<h2 id="可能的安全点">可能的安全点</h2>
+<p>除了常规问题，个人感觉可能出现问题的点如下：</p>
+<ul>
+<li>fake package</li>
+</ul>
+<p>Node.js 对应第三方包的导入流程如下：</p>
+<pre tabindex="0"><code>console.log(module.paths);
+
+// output
+[
+  &#39;/home/chu/Codz/learn_node/node_modules&#39;,
+  &#39;/home/chu/Codz/node_modules&#39;,
+  &#39;/home/chu/node_modules&#39;,
+  &#39;/home/node_modules&#39;,
+  &#39;/node_modules&#39;
+]
+</code></pre><p>如果当前目录没有相应包，则自动去上级目录寻找，并且优先级高于全局包。这可能会带来相应的安全点：</p>
+<pre tabindex="0"><code>⋊&gt; ~/C/learn_node ls node_modules/
+bagpipe/  commander/  netmask/  q-io/
+⋊&gt; ~/C/learn_node ls ../node_modules/
+q/
+⋊&gt; ~/C/learn_node cat test.js
+/**
+ * Created by chu on 16-4-6.
+ */
+
+var Q = require(&#34;q&#34;);
+⋊&gt; ~/C/learn_node node test.js
+faked package
+
+// fake global
+// 全局安装了 async
+⋊&gt; ~/C/learn_node ls node_modules/
+async/  bagpipe/  commander/  netmask/  q-io/
+⋊&gt; ~/C/learn_node cat test.js
+/**
+ * Created by chu on 16-4-6.
+ */
+
+var async = require(&#34;async&#34;);
+⋊&gt; ~/C/learn_node node test.js
+faked package async
+</code></pre><p>可以用来留后门；）</p>
+<ul>
+<li>npm 审核不严</li>
+</ul>
+<p>npm 对用户提交缺乏审查机制，如果提交一个和知名包名字相近的包（Netmask -&gt; netmask），用户错误输入就会导致安装恶意的包。造成代码执行。实例可以参考下：<a href="http://www.cnblogs.com/index-html/p/npm_package_phishing.html">【社工】NodeJS 应用仓库钓鱼</a></p>
+<h2 id="references">References</h2>
+<ul>
+<li>《深入浅出Node.js》</li>
+<li><a href="http://www.cnblogs.com/index-html/p/npm_package_phishing.html">【社工】NodeJS 应用仓库钓鱼</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+    </body>
+</html>

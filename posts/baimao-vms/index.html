@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="robots" content="index,follow" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="author" content="Chu" />
+        <meta name="description" content="Chu 的博客" />
+        <meta name="keywords" content="Chu,网络安全,编程开发" />
+
+        <title>3 个白帽 - VMS - Chu&#39;s BLoG</title>
+
+        
+		
+		
+        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+    </head>
+
+    <body>
+        <header></header>
+        <main>
+<article>
+    <header>
+        <h1>3 个白帽 - VMS</h1>
+        <div>
+            <time datetime="2016-06-28 21:23:18 +0800 CST">发布时间: 2016-06-28 21:23</time>
+            <time datetime="2016-06-28 21:23:18 +0800 CST">更新时间: 2016-06-28 21:23</time>
+        </div>
+    </header>
+
+    <section>
+    <p>rss 里面落下好多文章没有看，看到这道题的时候已经过去了近一个月 :(。来来回回搞了一个星期，真是菜。</p>
+<h2 id="逆向">逆向</h2>
+<p>程序相对简单，逆向中碰到的唯一略微难理解的地方可能就是堆指针的加密，这个在我以前做过的题目中是没有遇到过的。</p>
+<h2 id="漏洞">漏洞</h2>
+<h3 id="uaf">UAF</h3>
+<p>这个 UAF 很容易就能看出来，程序在 Edit 漏洞信息时，没有判断漏洞是否在使用中，只是根据漏洞名称进行遍历，导致可以修改已经删除漏洞的 Rank、Detail。</p>
+<p><img src="vms-1.png" alt=""></p>
+<h3 id="信息泄露">信息泄露</h3>
+<p>程序中编写了函数 StdRead，为从 STDIN 中读到的数据后添加 “\x00”，导致没有办法通过 read 来进行信息泄露。但是程序中在 Add 和 Edit 时，如果 Rank 不大于 0，则不会去设置它。结合 fastbins 的特性，可以用来泄露堆地址。</p>
+<p><img src="vms-2.png" alt=""></p>
+<p>（这个点感觉真的很隐晦，我自己看的时候完全没有注意到，看了 Drops 中的 writeup 才了解到的，看来还是不够细心。）</p>
+<h2 id="防护措施">防护措施</h2>
+<p>为了增大漏洞利用的难度，出题者开启了一些安全措施并自己编写了 Check 函数。</p>
+<h3 id="full-relro">FULL RELRO</h3>
+<p>checksec 可以看到程序开了 RELRO，以前没有接触过这个防护措施，Google 了下发现主要的影响是 got 表只读。</p>
+<blockquote>
+<p>On current Linux, your binaries are often compiled with RELRO. So that mean that following sections are mapped as read-only:
+.ctors .dtors .jcr .dynamic .got</p>
+</blockquote>
+<p>这个 UAF 漏洞最后能达到的效果是任意地址写，如果 got 只读对利用会有很大影响。继续 Google，找到了两个绕过的方式：</p>
+<ul>
+<li>fini()</li>
+<li>__free_hook()</li>
+</ul>
+<p>Drops 上的 writeup 也是利用的 __free_hook 这种方式。</p>
+<h3 id="堆指针加密">堆指针加密</h3>
+<p>作者很“心机”，为了防止直接通过 UAF 修改 DetailAddr 指针，将堆地址异或后放入表/结构体中。如果想要修改指针就必须泄露出异或的 key。</p>
+<h3 id="heappointercheck">HeapPointerCheck</h3>
+<p>在 Add、Edit、Delete 功能中，程序会首先对堆地址进行 check。这个 check 最终我也没有绕过，看 writeup 上讲是因为 check 不严谨，多次尝试是有一定几率绕过的，糖果师傅也这样说。在 writeup 的评论中作者回复说可以通过将全局变量重写为无穷大进行绕过，但是我并没有想到办法去重写。</p>
+<h2 id="问题">问题</h2>
+<h3 id="x64-下-fastbins-的大小限制是">x64 下 fastbins 的大小限制是？</h3>
+<p>这道题目最开始时我完全没有想到 fastbin，因为 Vuln 的结构体是 104，按照市面上大部分文章所讲，fastbin 的大小限制应该是 16-64，它是不属于其中的。但是实际调试过程中发现这个大小是与系统位数有关的，x64 下相应的限制应该是 32-128。</p>
+<h3 id="fastbins-真的不合并">fastbins 真的不合并？</h3>
+<p>在写 exp 的过程中遇到了一个问题：泄露堆地址时如果先删除 Vuln0 再删除 Vuln1，会导致 fastbins 中的 chunk 合并，但是同样的在目前大家写的文章中都是说 fastbins 是不合并的。深究下发现了这篇文章：<a href="http://blog.chinaunix.net/uid-27767798-id-4107020.html">ptmalloc中的fastbin chunk的合并过程</a> 解决了我的疑惑。这道题目中的情景是系统在 free 的 chunk 如果与 top chunk 相邻，那么当它与 top chunk 合并时系统回去尝试合并 fastbin 中的 chunk，减少碎片化。</p>
+<h2 id="利用">利用</h2>
+<p>直接贴 EXP 出来吧，思路通了结合注释还是比较容易理解的：https://gist.github.com/chuhades/73b1237c1429f384f980d7bb0328fa9c</p>
+<p>其实基本与 Drops 上面是一样的 :D</p>
+<h2 id="references">References</h2>
+<ul>
+<li><a href="http://drops.wooyun.org/binary/16257">三个白帽-来 PWN 我一下好吗 writeup</a></li>
+<li><a href="http://fluxius.handgrep.se/2011/10/20/the-art-of-elf-analysises-and-exploitations/">The Art Of ELF: Analysis and Exploitations</a></li>
+<li><a href="http://users.suse.com/~krahmer/relro.txt">RELRO &amp; ASLR &amp; NX</a></li>
+<li><a href="http://www.cnblogs.com/wangaohui/p/5190889.html">Malloc 碎碎念</a></li>
+<li><a href="http://blog.chinaunix.net/uid-27767798-id-4107020.html">ptmalloc 中的 fastbin chunk 的合并过程</a></li>
+</ul>
+
+    </section>
+</article>
+</main>
+    </body>
+</html>
