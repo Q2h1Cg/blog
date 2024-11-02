@@ -107,8 +107,10 @@
 </span></span><span style="display:flex;"><span>        print(result)
 </span></span></code></pre></div><p>由上而下，类中共有 4 个方法。</p>
 <h3 id="__init__"><strong>init</strong></h3>
-<p><code>self.__event_handler</code>： 用于注册 handler
-<code>self.__pool</code>： 以线程池的形式进行任务调度</p>
+<ul>
+<li><code>self.__event_handler</code>： 用于注册 handler</li>
+<li><code>self.__pool</code>： 以线程池的形式进行任务调度</li>
+</ul>
 <h3 id="add_event_handler">add_event_handler</h3>
 <p>注册 event-handler，将 handler 保存至 <code>self.__event_handler</code> 中，以供后期分发事件。</p>
 <h3 id="dispatch_event">dispatch_event</h3>
