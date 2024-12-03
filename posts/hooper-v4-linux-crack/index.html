@@ -62,7 +62,7 @@ pwndbg&gt; bt
 00000000005f50fc    call   sub_4f4670
 00000000005f5101    mov    rax, qword [rsp+0x70+var_70]
 00000000005f5105    mov    rax, qword [rax+0x1a8]
-</code></pre><p>0x00000000005f50fc 处的调用向上看，发现典型的 test/jne，确定 <code>CheckLicense (0x00000000004f7660)</code>就是真正的校验函数，patch 如下：</p>
+</code></pre><p>0x00000000005f50fc 处的调用向上看，发现典型的 test/jne，确定 <code>CheckLicense (0x00000000004f7660)</code> 就是真正的校验函数，patch 如下：</p>
 <pre tabindex="0"><code>00000000004f7660    mov    eax, 0x1            ; CODE XREF=sub_5bd550+1013, sub_5f5090+89, sub_5f5090+129, sub_5f9760+15, sub_5f99a0+8, sub_5f9b00+8, sub_5f9c60+8
 00000000004f7665    ret
 </code></pre><p>爆破大法好；）</p>
