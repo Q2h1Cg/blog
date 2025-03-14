@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="robots" content="index,follow" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="author" content="Chu" />
-        <meta name="description" content="Chu 的博客" />
-        <meta name="keywords" content="Chu,网络安全,编程开发" />
+<html lang="zh-CN">
 
-        <title>PHP 弱类型带来的安全问题 - Chu&#39;s BLoG</title>
+<head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
 
-        
-		
-		
-        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
-        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
-    </head>
+    <title>PHP 弱类型带来的安全问题 - Chu&#39;s BLoG</title>
 
-    <body>
-        <header></header>
-        <main>
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+</head>
+
+<body>
+    <header></header>
+    <main>
 <article>
     <header>
         <h1>PHP 弱类型带来的安全问题</h1>
@@ -37,14 +38,11 @@
 <h2 id="字符串转换为数值">字符串转换为数值</h2>
 <p>由上图可以看出，当对两个字符串进行比较时，会『进行数字或词汇比较』。</p>
 <blockquote>
-<p>当一个字符串被当作一个数值来取值，其结果和类型如下：</p>
-</blockquote>
+<p>当一个字符串被当作一个数值来取值，其结果和类型如下：</p></blockquote>
 <blockquote>
-<p>如果该字符串没有包含 ‘.’，’e’ 或 ‘E’ 并且其数字值在整型的范围之内（由 PHP_INT_MAX 所定义），该字符串将被当成 integer 来取值。其它所有情况下都被作为 float 来取值。</p>
-</blockquote>
+<p>如果该字符串没有包含 ‘.’，’e’ 或 ‘E’ 并且其数字值在整型的范围之内（由 PHP_INT_MAX 所定义），该字符串将被当成 integer 来取值。其它所有情况下都被作为 float 来取值。</p></blockquote>
 <blockquote>
-<p>该字符串的开始部分决定了它的值。如果该字符串以合法的数值开始，则使用该数值。否则其值为 0（零）。合法数值由可选的正负号，后面跟着一个或多个数字（可能有小数点），再跟着可选的指数部分。指数部分由 ‘e’ 或 ‘E’ 后面跟着一个或多个数字构成。</p>
-</blockquote>
+<p>该字符串的开始部分决定了它的值。如果该字符串以合法的数值开始，则使用该数值。否则其值为 0（零）。合法数值由可选的正负号，后面跟着一个或多个数字（可能有小数点），再跟着可选的指数部分。指数部分由 ‘e’ 或 ‘E’ 后面跟着一个或多个数字构成。</p></blockquote>
 <p>再结合文档，可以得出：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-php" data-lang="php"><span style="display:flex;"><span><span style="color:#f92672">&lt;?</span><span style="color:#a6e22e">php</span>
 </span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">var_dump</span>(<span style="color:#e6db74">&#39;1024&#39;</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;1024.00&#39;</span>); <span style="color:#75715e">//bool(true)
@@ -102,5 +100,6 @@
     </section>
 </article>
 </main>
-    </body>
+</body>
+
 </html>

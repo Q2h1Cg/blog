@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="robots" content="index,follow" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="author" content="Chu" />
-        <meta name="description" content="Chu 的博客" />
-        <meta name="keywords" content="Chu,网络安全,编程开发" />
+<html lang="zh-CN">
 
-        <title>Python &#43; Requests 编码问题 - Chu&#39;s BLoG</title>
+<head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
 
-        
-		
-		
-        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
-        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
-    </head>
+    <title>Python &#43; Requests 编码问题 - Chu&#39;s BLoG</title>
 
-    <body>
-        <header></header>
-        <main>
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+</head>
+
+<body>
+    <header></header>
+    <main>
 <article>
     <header>
         <h1>Python &#43; Requests 编码问题</h1>
@@ -35,27 +36,21 @@
 <p>可以从官方的 API 文档中找出乱码的根本原因，http://docs.python-requests.org/en/latest/api/#requests.Response.text：</p>
 <blockquote>
 <p>class requests.Response
-The Response object, which contains a server’s response to an HTTP request.</p>
-</blockquote>
+The Response object, which contains a server’s response to an HTTP request.</p></blockquote>
 <blockquote>
-<p>···SNIP···</p>
-</blockquote>
+<p>···SNIP···</p></blockquote>
 <blockquote>
 <p>text
-Content of the response, in unicode.</p>
-</blockquote>
+Content of the response, in unicode.</p></blockquote>
 <blockquote>
-<p>If Response.encoding is None, encoding will be guessed using chardet.</p>
-</blockquote>
+<p>If Response.encoding is None, encoding will be guessed using chardet.</p></blockquote>
 <blockquote>
 <p>The encoding of the response content is determined based solely on HTTP head
 ers, following RFC 2616 to the letter. If you can take advantage of non-HTTP
 knowledge to make a better guess at the encoding, you should set r.encoding
-appropriately before accessing this property.</p>
-</blockquote>
+appropriately before accessing this property.</p></blockquote>
 <blockquote>
-<p>···SNIP···</p>
-</blockquote>
+<p>···SNIP···</p></blockquote>
 <p>可见，requests 是通过 http header 猜测页面编码，如果 header 中不存在 charset 就认为编码为 ISO-8859-1。这样的话，对于返回头中没有指定页面编码的情况，自然就出现乱码了，如：</p>
 <pre tabindex="0"><code>&gt;&gt;&gt; import requests
 &gt;&gt;&gt; r = requests.get(&#34;http://www.wooyun.org&#34;)
@@ -83,8 +78,7 @@ no-cache, must-revalidate, post-check=0, pre-check=0&#39;, &#39;date&#39;: &#39;
 ···SNIP···
 </code></pre><p>文档中提供的解决办法：</p>
 <blockquote>
-<p>If you can take advantage of non-HTTP knowledge to make a better guess at the encoding, you should set r.encoding appropriately before accessing this property.</p>
-</blockquote>
+<p>If you can take advantage of non-HTTP knowledge to make a better guess at the encoding, you should set r.encoding appropriately before accessing this property.</p></blockquote>
 <p>即在访问 r.text 属性前先设置下正确的编码，如下：</p>
 <pre tabindex="0"><code>&gt;&gt;&gt; import requests
 &gt;&gt;&gt; r = requests.get(&#34;http://www.wooyun.org&#34;)
@@ -142,5 +136,6 @@ he, must-revalidate, post-check=0, pre-check=0&#39;, &#39;date&#39;: &#39;Wed, 1
     </section>
 </article>
 </main>
-    </body>
+</body>
+
 </html>

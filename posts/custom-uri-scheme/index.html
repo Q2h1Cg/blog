@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="robots" content="index,follow" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="author" content="Chu" />
-        <meta name="description" content="Chu 的博客" />
-        <meta name="keywords" content="Chu,网络安全,编程开发" />
+<html lang="zh-CN">
 
-        <title>应用自定义协议（Custom URI Scheme）相关记录 - Chu&#39;s BLoG</title>
+<head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
 
-        
-		
-		
-        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
-        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
-    </head>
+    <title>应用自定义协议（Custom URI Scheme）相关记录 - Chu&#39;s BLoG</title>
 
-    <body>
-        <header></header>
-        <main>
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+</head>
+
+<body>
+    <header></header>
+    <main>
 <article>
     <header>
         <h1>应用自定义协议（Custom URI Scheme）相关记录</h1>
@@ -41,18 +42,15 @@
 <p><img src="3.png" alt=""></p>
 <p>其中的“&quot;”是可以通过注入“&quot;”闭合的，如微软文档所言：</p>
 <blockquote>
-<p>Because Internet Explorer will decode all percent-encoded octets in the URI before passing the resulting string to ShellExecute, URIs such as alert:%3F? will be given to the alert application pluggable protocol handler as alert:??. The handler won&rsquo;t know that the first question mark was percent-encoded. To avoid this issue, pluggable protocol handlers and their associated URI scheme must not rely on encoding. If encoding is necessary, protocol handlers should use another type of encoding that is compatible with URI syntax, such as Base64 encoding. Double percent-encoding is not a good solution either; if the application protocol URI isn&rsquo;t processed by Internet Explorer, it will not be decoded.</p>
-</blockquote>
+<p>Because Internet Explorer will decode all percent-encoded octets in the URI before passing the resulting string to ShellExecute, URIs such as alert:%3F? will be given to the alert application pluggable protocol handler as alert:??. The handler won&rsquo;t know that the first question mark was percent-encoded. To avoid this issue, pluggable protocol handlers and their associated URI scheme must not rely on encoding. If encoding is necessary, protocol handlers should use another type of encoding that is compatible with URI syntax, such as Base64 encoding. Double percent-encoding is not a good solution either; if the application protocol URI isn&rsquo;t processed by Internet Explorer, it will not be decoded.</p></blockquote>
 <blockquote>
 <p>When ShellExecute executes the pluggable protocol handler with a stringon the command line, any non-encoded spaces, quotes, and backslashes in the URI will be interpreted as part of the command line. This means that if you use C/C++&rsquo;s argc and argv to determine the arguments passed to your application, the string may be broken across multiple parameters. To mitigate this issue:</p>
 <ul>
 <li>Avoid spaces, quotes, or backslashes in your URI</li>
 <li>Quote the %1 in the registration (&quot;%1&quot; as written in the &lsquo;alert&rsquo; example registration)</li>
-</ul>
-</blockquote>
+</ul></blockquote>
 <blockquote>
-<p>However, avoidance doesn&rsquo;t completely solve the problem of quotes in the URI or a backslash at the end of the URI.</p>
-</blockquote>
+<p>However, avoidance doesn&rsquo;t completely solve the problem of quotes in the URI or a backslash at the end of the URI.</p></blockquote>
 <p>也就是说可以通过注入“&quot;”而引入任何参数，这便是 Electron 漏洞的原理。</p>
 <h2 id="2-相关漏洞">2. 相关漏洞</h2>
 <p>理解了什么是自定义协议再看相关漏洞就简单很多，其实就是一个能被其他应用调用的输入点，这里的其他应用包括但不限于浏览器（相对直接的利用方式）、快捷方式等。下面看几个比较典型的案例。</p>
@@ -88,5 +86,6 @@
     </section>
 </article>
 </main>
-    </body>
+</body>
+
 </html>

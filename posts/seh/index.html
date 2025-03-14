@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="robots" content="index,follow" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="author" content="Chu" />
-        <meta name="description" content="Chu 的博客" />
-        <meta name="keywords" content="Chu,网络安全,编程开发" />
+<html lang="zh-CN">
 
-        <title>S.E.H - Chu&#39;s BLoG</title>
+<head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
 
-        
-		
-		
-        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
-        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
-    </head>
+    <title>S.E.H - Chu&#39;s BLoG</title>
 
-    <body>
-        <header></header>
-        <main>
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+</head>
+
+<body>
+    <header></header>
+    <main>
 <article>
     <header>
         <h1>S.E.H</h1>
@@ -45,8 +46,7 @@
 <li>在非调试状态下，KiUserExceptionDispatcher() 调用 RtlDispatchException() 函数对线程的 S.E.H 链表进行遍历，如果找到能够处理异常的回调函数，将再次遍历先前调用过的 S.E.H 句柄，即 unwind 操作，以保证异常处理机制自身的完整性。</li>
 <li>如果栈中所有的 S.E.H 都失败了，且用户曾经使用过 SetUnhandledExceptionFilter() 函数设定进程处理异常，则这个异常处理将被调用。</li>
 <li>如果用户自定义的进程异常处理失败，或者用户根本没有定义进程异常处理，那么系统默认的异常处理 UnhandledExceptionFilter() 将会被调用。U.E.F 会根据注册表中相关信息决定是默默地关闭程序，还是弹出错误对话框。</li>
-</ul>
-</blockquote>
+</ul></blockquote>
 <h2 id="测试目标及测试环境">测试目标及测试环境</h2>
 <p>参考小马哥的文章，我也采用 AudioCoder 作为测试软件。</p>
 <ul>
@@ -148,5 +148,6 @@
     </section>
 </article>
 </main>
-    </body>
+</body>
+
 </html>

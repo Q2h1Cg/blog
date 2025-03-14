@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="robots" content="index,follow" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="author" content="Chu" />
-        <meta name="description" content="Chu 的博客" />
-        <meta name="keywords" content="Chu,网络安全,编程开发" />
+<html lang="zh-CN">
 
-        <title>打造高速、全面的子域名爆破 - Chu&#39;s BLoG</title>
+<head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
 
-        
-		
-		
-        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
-        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
-    </head>
+    <title>打造高速、全面的子域名爆破 - Chu&#39;s BLoG</title>
 
-    <body>
-        <header></header>
-        <main>
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+</head>
+
+<body>
+    <header></header>
+    <main>
 <article>
     <header>
         <h1>打造高速、全面的子域名爆破</h1>
@@ -81,12 +82,12 @@
 <p>泛解析一直都是域名爆破中的大问题，目前的解决思路是根据确切不存在的子域名记录（md5(domain).domain）获取黑名单 IP，对爆破过程的结果进行黑名单过滤。</p>
 <p>但这种宽泛的过滤很容易导致漏报，如泛解析记录为 1.1.1.1，但某存在子域名也指向 1.1.1.1，此时这个子域名便可能会被黑名单过滤掉。</p>
 <p>胖学弟提到，可以将 TTL 也作为黑名单规则的一部分，评判的依据是：在权威 DNS 中，泛解析记录的 TTL 肯定是相同的，如果子域名记录相同，但 TTL 不同，那这条记录可以说肯定不是泛解析记录。最终的判断代码如下：</p>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#75715e">// IsPanDNSRecord 是否为泛解析记录
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">IsPanDNSRecord</span>(<span style="color:#a6e22e">record</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">ttl</span> <span style="color:#66d9ef">uint32</span>) <span style="color:#66d9ef">bool</span> {
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#75715e">// IsPanDNSRecord 是否为泛解析记录</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">IsPanDNSRecord</span>(<span style="color:#a6e22e">record</span> <span style="color:#66d9ef">string</span>, <span style="color:#a6e22e">ttl</span> <span style="color:#66d9ef">uint32</span>) <span style="color:#66d9ef">bool</span> {
 </span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">_ttl</span>, <span style="color:#a6e22e">ok</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">panDNSRecords</span>[<span style="color:#a6e22e">TrimSuffixPoint</span>(<span style="color:#a6e22e">record</span>)]
-</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 若记录不存在于黑名单列表，不是泛解析
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#75715e">// 若记录存在，且与黑名单中的 ttl 不等但都是 60（1min）的倍数，不是泛解析
-</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    <span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">ok</span> <span style="color:#f92672">||</span> (<span style="color:#a6e22e">_ttl</span> <span style="color:#f92672">!=</span> <span style="color:#a6e22e">ttl</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">_ttl</span><span style="color:#f92672">%</span><span style="color:#ae81ff">60</span> <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">ttl</span><span style="color:#f92672">%</span><span style="color:#ae81ff">60</span> <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 若记录不存在于黑名单列表，不是泛解析</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// 若记录存在，且与黑名单中的 ttl 不等但都是 60（1min）的倍数，不是泛解析</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> !<span style="color:#a6e22e">ok</span> <span style="color:#f92672">||</span> (<span style="color:#a6e22e">_ttl</span> <span style="color:#f92672">!=</span> <span style="color:#a6e22e">ttl</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">_ttl</span><span style="color:#f92672">%</span><span style="color:#ae81ff">60</span> <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span> <span style="color:#f92672">&amp;&amp;</span> <span style="color:#a6e22e">ttl</span><span style="color:#f92672">%</span><span style="color:#ae81ff">60</span> <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
 </span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">return</span> <span style="color:#66d9ef">false</span>
 </span></span><span style="display:flex;"><span>    }
 </span></span><span style="display:flex;"><span>
@@ -96,5 +97,6 @@
     </section>
 </article>
 </main>
-    </body>
+</body>
+
 </html>

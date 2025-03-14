@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-cn">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="robots" content="index,follow" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="author" content="Chu" />
-        <meta name="description" content="Chu 的博客" />
-        <meta name="keywords" content="Chu,网络安全,编程开发" />
+<html lang="zh-CN">
 
-        <title>Pwnable.kr - Chu&#39;s BLoG</title>
+<head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="author" content="Chu" />
+    <meta name="description" content="Chu 的博客" />
+    <meta name="keywords" content="Chu,网络安全,编程开发" />
 
-        
-		
-		
-        <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
-        <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
-    </head>
+    <title>Pwnable.kr - Chu&#39;s BLoG</title>
 
-    <body>
-        <header></header>
-        <main>
+    
+    
+    
+    <link rel="stylesheet" href="/css/main.5d65992f9b793fc8ef4d51468c16f848fbe23ebfca8a5cd9508abf8cc4389cc7.css" integrity="sha256-XWWZL5t5P8jvTVFGjBb4SPviPr/KilzZUIq/jMQ4nMc=" />
+    <link rel="alternate" href="/index.xml" type="application/atom+xml" title="RSS" />
+</head>
+
+<body>
+    <header></header>
+    <main>
 <article>
     <header>
         <h1>Pwnable.kr</h1>
@@ -35,14 +36,11 @@
 <h2 id="1-fd">1. fd</h2>
 <p>考察的是 Linux 文件描述符相关知识：</p>
 <blockquote>
-<p>fd == 0 为标准输入</p>
-</blockquote>
+<p>fd == 0 为标准输入</p></blockquote>
 <blockquote>
-<p>fd == 1 为标准输出</p>
-</blockquote>
+<p>fd == 1 为标准输出</p></blockquote>
 <blockquote>
-<p>fd == 2 为标准错误输出</p>
-</blockquote>
+<p>fd == 2 为标准错误输出</p></blockquote>
 <p>将 <code>argv[1]</code> 减去 4660，read(fd)，然后比较字符串：</p>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>⋊&gt; ~/p/1_fd ./fd <span style="color:#ae81ff">4660</span>
 </span></span><span style="display:flex;"><span>LETMEWIN
@@ -233,5 +231,6 @@ My daddy has a lot of ARMv5te muscle!
     </section>
 </article>
 </main>
-    </body>
+</body>
+
 </html>
